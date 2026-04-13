@@ -19,7 +19,9 @@ export default function AttendanceIndex({
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [showAssignWorkers, setShowAssignWorkers] = useState(false);
   const [showInitialize, setShowInitialize] = useState(false);
-  const [checkInData, setCheckInData] = useState({ user_id: '', project_id: '', status: 'present' });
+  // Assurer que le statut a toujours une valeur par défaut
+  const defaultStatus = statuses && statuses.length > 0 ? statuses[0].value : 'present';
+  const [checkInData, setCheckInData] = useState({ user_id: '', project_id: '', status: defaultStatus });
   const [selectedProjectForAssign, setSelectedProjectForAssign] = useState('');
   const [selectedWorkersForAssign, setSelectedWorkersForAssign] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,6 +38,8 @@ export default function AttendanceIndex({
     e.preventDefault();
     setLoading(true);
 
+    console.log('Submitting check-in data:', checkInData);
+
     try {
       const response = await fetch('/attendance/check-in', {
         method: 'POST',
@@ -46,15 +50,21 @@ export default function AttendanceIndex({
         body: JSON.stringify(checkInData),
       });
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
         const error = await response.json();
+        console.error('Error response:', error);
         alert(error.message || 'Erreur lors de l\'enregistrement');
         return;
       }
 
+      const result = await response.json();
+      console.log('Success response:', result);
+
       alert('Arrivée enregistrée avec succès');
       setShowCheckIn(false);
-      setCheckInData({ user_id: '', project_id: '', status: 'present' });
+      setCheckInData({ user_id: '', project_id: '', status: defaultStatus });
       window.location.reload();
     } catch (error) {
       console.error('Error:', error);
@@ -438,17 +448,21 @@ export default function AttendanceIndex({
 
                   <div className="space-y-2">
                     <label className="text-sm font-semibold">Statut</label>
-                    <select
-                      value={checkInData.status}
-                      onChange={(e) => setCheckInData({ ...checkInData, status: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                    >
-                      {statuses?.map((s: any) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
+                    {!statuses || statuses.length === 0 ? (
+                      <div className="p-2 bg-yellow-100 text-yellow-800 rounded text-sm">Statuts non chargés</div>
+                    ) : (
+                      <select
+                        value={checkInData.status}
+                        onChange={(e) => setCheckInData({ ...checkInData, status: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
+                      >
+                        {statuses?.map((s: any) => (
+                          <option key={s.value} value={s.value}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div className="flex gap-2 pt-4">

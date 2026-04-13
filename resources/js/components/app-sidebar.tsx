@@ -11,7 +11,9 @@ import {
     History,
     Settings,
     HelpCircle,
-    FileText
+    FileText,
+    BarChart3,
+    Clock
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
@@ -30,6 +32,7 @@ import { dashboard } from '@/routes';
 import { index as projectsIndex } from '@/actions/App/Http/Controllers/Api/ProjectController';
 import { index as usersIndex } from '@/actions/App/Http/Controllers/UserController';
 import { index as activityLogsIndex } from '@/actions/App/Http/Controllers/ActivityLogController';
+import { index as reportsIndex } from '@/actions/App/Http/Controllers/ReportController';
 import type { NavItem } from '@/types';
 import { UserRole } from '@/Enums/UserRole';
 
@@ -38,6 +41,8 @@ const roleNavItems: Record<string, NavItem[]> = {
         { title: 'Vue d\'ensemble', href: dashboard(), icon: LayoutGrid },
         { title: 'Chantiers', href: projectsIndex(), icon: TrendingUp },
         { title: 'Ressources Humaines', href: usersIndex(), icon: Users },
+        { title: 'Présence', href: '/attendance', icon: Clock },
+        { title: 'Rapports', href: reportsIndex(), icon: BarChart3 },
         { title: 'Audit & Logs', href: activityLogsIndex(), icon: History },
     ],
     [UserRole.Engineer.value]: [

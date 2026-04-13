@@ -1,0 +1,291 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\ActivityLog;
+use App\Models\Attendance;
+use App\Models\Project;
+use App\Models\Task;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class ReportController extends Controller
+{
+    public function index(): Response
+    {
+        return Inertia::render('reports/index', [
+            'reportTypes' => [
+                ['value' => 'global', 'label' => 'Rapport Global'],
+                ['value' => 'project', 'label' => 'Rapport par Projet'],
+                ['value' => 'worker', 'label' => 'Rapport par Ouvrier'],
+                ['value' => 'activities', 'label' => 'Rapport d\'Activités'],
+            ],
+        ]);
+    }
+
+    public function generate(Request $request)
+    {
+        $validated = $request->validate([
+            'type' => 'required|in:global,project,worker,activities',
+            'project_id' => 'nullable|exists:projects,id',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'worker_id' => 'nullable|exists:users,id',
+        ]);
+
+        $reportType = $validated['type'];
+        $startDate = $validated['start_date'] ? Carbon::parse($validated['start_date']) : null;
+        $endDate = $validated['end_date'] ? Carbon::parse($validated['end_date']) : null;
+
+        $report = match ($reportType) {
+            'global' => $this->generateGlobalReport($startDate, $endDate),
+            'project' => $this->generateProjectReport($validated['project_id'] ?? null, $startDate, $endDate),
+            'worker' => $this->generateWorkerReport($validated['worker_id'] ?? null, $startDate, $endDate),
+            'activities' => $this->generateActivitiesReport($startDate, $endDate),
+            default => [],
+        };
+
+        return response()->json([
+            'type' => $reportType,
+            'period' => [
+                'start_date' => $startDate?->format('Y-m-d'),
+                'end_date' => $endDate?->format('Y-m-d'),
+            ],
+            'data' => $report,
+        ]);
+    }
+
+    private function generateGlobalReport(?Carbon $startDate, ?Carbon $endDate): array
+    {
+        $projectsQuery = Project::query();
+        $tasksQuery = Task::query();
+        $activitiesQuery = ActivityLog::query();
+        $attendanceQuery = Attendance::query();
+
+        if ($startDate) {
+            $projectsQuery->where('created_at', '>=', $startDate);
+            $tasksQuery->where('created_at', '>=', $startDate);
+            $activitiesQuery->where('created_at', '>=', $startDate);
+            $attendanceQuery->where('date', '>=', $startDate->format('Y-m-d'));
+        }
+
+        if ($endDate) {
+            $projectsQuery->where('created_at', '<=', $endDate);
+            $tasksQuery->where('created_at', '<=', $endDate);
+            $activitiesQuery->where('created_at', '<=', $endDate);
+            $attendanceQuery->where('date', '<=', $endDate->format('Y-m-d'));
+        }
+
+        $totalProjects = $projectsQuery->count();
+        $activeProjects = $projectsQuery->where('status', '!=', 'termine')->count();
+        $completedProjects = $projectsQuery->where('status', 'termine')->count();
+
+        $totalTasks = $tasksQuery->count();
+        $completedTasks = $tasksQuery->where('status', 'completed')->count();
+
+        $totalBudget = $projectsQuery->sum('budget');
+        $totalWorkers = User::where('role', '!=', 'manager')->count();
+
+        $attendanceRecords = $attendanceQuery->get();
+        $totalWorkingHours = $attendanceRecords->sum(function ($record) {
+            if ($record->check_in && $record->check_out) {
+                return Carbon::parse($record->check_in)->diffInHours(Carbon::parse($record->check_out));
+            }
+
+            return 0;
+        });
+
+        $activitiesByAction = $activitiesQuery
+            ->groupBy('action')
+            ->selectRaw('action, COUNT(*) as count')
+            ->get()
+            ->mapWithKeys(fn ($item) => [$item->action => $item->count])
+            ->toArray();
+
+        return [
+            'summary' => [
+                'total_projects' => $totalProjects,
+                'active_projects' => $activeProjects,
+                'completed_projects' => $completedProjects,
+                'total_tasks' => $totalTasks,
+                'completed_tasks' => $completedTasks,
+                'total_budget' => (float) $totalBudget,
+                'total_workers' => $totalWorkers,
+                'total_working_hours' => $totalWorkingHours,
+            ],
+            'projects_by_status' => Project::selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')
+                ->get()
+                ->mapWithKeys(fn ($item) => [$item->status => $item->count])
+                ->toArray(),
+            'activities' => $activitiesByAction,
+        ];
+    }
+
+    private function generateProjectReport(?int $projectId, ?Carbon $startDate, ?Carbon $endDate): array
+    {
+        $query = Project::with('tasks', 'manager', 'engineer', 'steps');
+
+        if ($projectId) {
+            $query->where('id', $projectId);
+        }
+
+        if ($startDate) {
+            $query->where('created_at', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $query->where('created_at', '<=', $endDate);
+        }
+
+        $projects = $query->get();
+
+        return $projects->map(function ($project) {
+            $tasks = $project->tasks;
+            $totalBudgetSteps = $project->steps->sum('budget');
+            $workers = collect($tasks)->flatMap(fn ($task) => $task->workers)->unique('id');
+
+            return [
+                'id' => $project->id,
+                'name' => $project->name,
+                'description' => $project->description,
+                'status' => $project->status,
+                'start_date' => $project->start_date->format('Y-m-d'),
+                'deadline' => $project->deadline->format('Y-m-d'),
+                'budget' => (float) $project->budget,
+                'budget_from_steps' => (float) $totalBudgetSteps,
+                'manager' => $project->manager?->name,
+                'engineer' => $project->engineer?->name,
+                'total_tasks' => $tasks->count(),
+                'completed_tasks' => $tasks->where('status', 'completed')->count(),
+                'total_workers' => $workers->count(),
+                'total_steps' => $project->steps->count(),
+            ];
+        })->toArray();
+    }
+
+    private function generateWorkerReport(?int $workerId, ?Carbon $startDate, ?Carbon $endDate): array
+    {
+        $query = User::where('role', '!=', 'manager');
+
+        if ($workerId) {
+            $query->where('id', $workerId);
+        }
+
+        $workers = $query->with('tasks')->get();
+
+        return $workers->map(function ($worker) use ($startDate, $endDate) {
+            $attendanceQuery = Attendance::where('user_id', $worker->id);
+
+            if ($startDate) {
+                $attendanceQuery->where('date', '>=', $startDate->format('Y-m-d'));
+            }
+
+            if ($endDate) {
+                $attendanceQuery->where('date', '<=', $endDate->format('Y-m-d'));
+            }
+
+            $attendanceRecords = $attendanceQuery->get();
+
+            $totalWorkingHours = $attendanceRecords->sum(function ($record) {
+                if ($record->check_in && $record->check_out) {
+                    return Carbon::parse($record->check_in)->diffInHours(Carbon::parse($record->check_out));
+                }
+
+                return 0;
+            });
+
+            $projectsWorkedOn = $worker->tasks
+                ->map(fn ($task) => $task->project_id)
+                ->unique()
+                ->count();
+
+            $tasksCompleted = $worker->tasks->where('status', 'completed')->count();
+
+            return [
+                'id' => $worker->id,
+                'name' => $worker->name,
+                'email' => $worker->email,
+                'role' => $worker->role,
+                'total_tasks' => $worker->tasks->count(),
+                'completed_tasks' => $tasksCompleted,
+                'projects_worked_on' => $projectsWorkedOn,
+                'attendance_days' => $attendanceRecords->count(),
+                'total_working_hours' => $totalWorkingHours,
+                'avg_hours_per_day' => $attendanceRecords->count() > 0 ? round($totalWorkingHours / $attendanceRecords->count(), 2) : 0,
+            ];
+        })->toArray();
+    }
+
+    private function generateActivitiesReport(?Carbon $startDate, ?Carbon $endDate): array
+    {
+        $query = ActivityLog::with('user');
+
+        if ($startDate) {
+            $query->where('created_at', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $query->where('created_at', '<=', $endDate);
+        }
+
+        $activities = $query->latest()->get();
+
+        $actionStats = ActivityLog::query();
+
+        if ($startDate) {
+            $actionStats->where('created_at', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $actionStats->where('created_at', '<=', $endDate);
+        }
+
+        $actionStats = $actionStats
+            ->selectRaw('action, COUNT(*) as count')
+            ->groupBy('action')
+            ->get()
+            ->mapWithKeys(fn ($item) => [$item->action => $item->count])
+            ->toArray();
+
+        $userStats = ActivityLog::query();
+
+        if ($startDate) {
+            $userStats->where('created_at', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $userStats->where('created_at', '<=', $endDate);
+        }
+
+        $userStats = $userStats
+            ->selectRaw('user_id, COUNT(*) as count')
+            ->groupBy('user_id')
+            ->with('user')
+            ->get()
+            ->map(fn ($item) => [
+                'user_id' => $item->user_id,
+                'user_name' => $item->user?->name,
+                'count' => $item->count,
+            ])
+            ->toArray();
+
+        return [
+            'total_activities' => $activities->count(),
+            'action_statistics' => $actionStats,
+            'user_statistics' => $userStats,
+            'recent_activities' => $activities->take(50)->map(function ($activity) {
+                return [
+                    'id' => $activity->id,
+                    'user' => $activity->user?->name,
+                    'action' => $activity->action,
+                    'description' => $activity->description,
+                    'timestamp' => $activity->created_at->format('Y-m-d H:i:s'),
+                ];
+            })->toArray(),
+        ];
+    }
+}

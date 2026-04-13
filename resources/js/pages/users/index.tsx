@@ -1,10 +1,10 @@
-import React from 'react';
 import { router } from '@inertiajs/react';
 import { Trash2, UserPlus } from 'lucide-react';
+import React from 'react';
+
+import { store } from '@/actions/App/Http/Controllers/UserController';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogTrigger,
@@ -12,7 +12,8 @@ import {
   DialogTitle,
   DialogClose
 } from '@/components/ui/dialog';
-import { store } from '@/actions/App/Http/Controllers/UserController';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function UsersIndex({ users }: any) {
   const [open, setOpen] = React.useState(false);
@@ -21,7 +22,7 @@ export default function UsersIndex({ users }: any) {
     name: '',
     email: '',
     password: '',
-    role: 'Engineer',
+    role: 'engineer',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -53,7 +54,7 @@ export default function UsersIndex({ users }: any) {
         return;
       }
 
-      setFormData({ name: '', email: '', password: '', role: 'Engineer' });
+      setFormData({ name: '', email: '', password: '', role: 'engineer' });
       setOpen(false);
       router.visit('/users');
     } catch (error) {
@@ -164,11 +165,11 @@ export default function UsersIndex({ users }: any) {
                   className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
                   required
                 >
-                  <option value="Manager">Manager</option>
-                  <option value="Engineer">Ingénieur</option>
-                  <option value="Worker">Ouvrier</option>
-                  <option value="Magasinier">Magasinier</option>
-                  <option value="ChefChantier">Chef Chantier</option>
+                  <option value="manager">Manager</option>
+                  <option value="engineer">Ingénieur</option>
+                  <option value="worker">Ouvrier</option>
+                  <option value="magasinier">Magasinier</option>
+                  <option value="chef_chantier">Chef Chantier</option>
                 </select>
               </div>
               <div className="flex justify-end gap-2 pt-2">

@@ -34,18 +34,18 @@ class DashboardController extends Controller
                 'total_workers' => User::where('role', UserRole::Worker)->count(),
                 'total_tasks' => Task::count(),
             ];
-            $data['engineers'] = User::where('role', UserRole::Engineer)->get(['id', 'name', 'email']);
+            $data['engineers'] = User::whereIn('role', [UserRole::Engineer, UserRole::ChefChantier])->get(['id', 'name', 'email']);
         } elseif ($user->role === UserRole::Engineer) {
             $data['tasks'] = Task::whereHas('project', function ($q) use ($user) {
                 $q->where('engineer_id', $user->id);
             })->with(['workers', 'project'])->latest()->get();
-            
+
             $data['stats'] = [
                 'active_tasks' => Task::whereHas('project', function ($q) use ($user) {
                     $q->where('engineer_id', $user->id);
                 })->where('status', 'en_cours')->count(),
-                'total_workers_under' => User::whereHas('tasks', function($q) use ($user) {
-                    $q->whereHas('project', function($pq) use ($user) {
+                'total_workers_under' => User::whereHas('tasks', function ($q) use ($user) {
+                    $q->whereHas('project', function ($pq) use ($user) {
                         $pq->where('engineer_id', $user->id);
                     });
                 })->distinct()->count(),

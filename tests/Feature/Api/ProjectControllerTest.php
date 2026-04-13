@@ -6,7 +6,7 @@ use App\Models\User;
 
 test('manager can create project with steps and auto-calculated budget', function () {
     $manager = User::factory()->create(['role' => UserRole::Manager]);
-    
+
     $this->actingAs($manager)->postJson('/projects', [
         'name' => 'Chantier Centre Ville',
         'description' => 'Rénovation complète',
@@ -17,12 +17,12 @@ test('manager can create project with steps and auto-calculated budget', functio
             ['name' => 'Phase 3', 'budget' => 1500],
         ],
     ])->assertStatus(201)
-    ->assertJson(['message' => 'Projet créé avec succès'])
-    ->assertJsonPath('project.budget', '4500.00')
-    ->assertJsonPath('project.status', 'initialisation')
-    ->assertJsonPath('project.manager_id', $manager->id)
-    ->assertJsonCount(3, 'project.steps');
-    
+        ->assertJson(['message' => 'Projet créé avec succès'])
+        ->assertJsonPath('project.budget', '4500.00')
+        ->assertJsonPath('project.status', 'initialisation')
+        ->assertJsonPath('project.manager_id', $manager->id)
+        ->assertJsonCount(3, 'project.steps');
+
     expect(Project::count())->toBe(1);
     $project = Project::first();
     expect((float) $project->budget)->toBe(4500.0);
@@ -33,7 +33,7 @@ test('manager can create project with steps and auto-calculated budget', functio
 
 test('manager can override auto-calculated budget', function () {
     $manager = User::factory()->create(['role' => UserRole::Manager]);
-    
+
     $this->actingAs($manager)->postJson('/projects', [
         'name' => 'Projet avec override',
         'description' => 'Budget override test',
@@ -44,12 +44,12 @@ test('manager can override auto-calculated budget', function () {
             ['name' => 'Étape 2', 'budget' => 2000],
         ],
     ])->assertStatus(201)
-    ->assertJsonPath('project.budget', '5500.00'); // Should use the override
+        ->assertJsonPath('project.budget', '5500.00'); // Should use the override
 });
 
 test('project requires deadline in future', function () {
     $manager = User::factory()->create(['role' => UserRole::Manager]);
-    
+
     $this->actingAs($manager)->postJson('/projects', [
         'name' => 'Invalid Project',
         'deadline' => now()->subDays(1)->toDateString(),
@@ -57,23 +57,23 @@ test('project requires deadline in future', function () {
             ['name' => 'Phase 1', 'budget' => 1000],
         ],
     ])->assertStatus(422)
-    ->assertJsonValidationErrors('deadline');
+        ->assertJsonValidationErrors('deadline');
 });
 
 test('project requires at least one step', function () {
     $manager = User::factory()->create(['role' => UserRole::Manager]);
-    
+
     $this->actingAs($manager)->postJson('/projects', [
         'name' => 'No Steps Project',
         'deadline' => now()->addDays(30)->toDateString(),
         'steps' => [],
     ])->assertStatus(422)
-    ->assertJsonValidationErrors('steps');
+        ->assertJsonValidationErrors('steps');
 });
 
 test('each step requires name and budget', function () {
     $manager = User::factory()->create(['role' => UserRole::Manager]);
-    
+
     $response = $this->actingAs($manager)->postJson('/projects', [
         'name' => 'Invalid Steps',
         'deadline' => now()->addDays(30)->toDateString(),
@@ -82,7 +82,7 @@ test('each step requires name and budget', function () {
             ['budget' => 1000], // Missing name
         ],
     ]);
-    
+
     $response->assertStatus(422);
     expect($response->json('errors'))->toHaveKey('steps.0.budget');
     expect($response->json('errors'))->toHaveKey('steps.1.name');
@@ -90,7 +90,7 @@ test('each step requires name and budget', function () {
 
 test('steps are created with correct order', function () {
     $manager = User::factory()->create(['role' => UserRole::Manager]);
-    
+
     $this->actingAs($manager)->postJson('/projects', [
         'name' => 'Order Test',
         'deadline' => now()->addDays(30)->toDateString(),
@@ -100,10 +100,9 @@ test('steps are created with correct order', function () {
             ['name' => 'Third', 'budget' => 3000],
         ],
     ])->assertStatus(201);
-    
+
     $project = Project::first();
     expect($project->steps[0]->order)->toBe(1);
     expect($project->steps[1]->order)->toBe(2);
     expect($project->steps[2]->order)->toBe(3);
 });
-

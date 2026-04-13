@@ -27,15 +27,18 @@ import {
     SidebarRail,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as projectsIndex } from '@/actions/App/Http/Controllers/Api/ProjectController';
+import { index as usersIndex } from '@/actions/App/Http/Controllers/UserController';
+import { index as activityLogsIndex } from '@/actions/App/Http/Controllers/ActivityLogController';
 import type { NavItem } from '@/types';
 import { UserRole } from '@/Enums/UserRole';
 
 const roleNavItems: Record<string, NavItem[]> = {
     [UserRole.Manager.value]: [
         { title: 'Vue d\'ensemble', href: dashboard(), icon: LayoutGrid },
-        { title: 'Chantiers', href: '#', icon: TrendingUp },
-        { title: 'Ressources Humaines', href: '#', icon: Users },
-        { title: 'Audit & Logs', href: '#', icon: History },
+        { title: 'Chantiers', href: projectsIndex(), icon: TrendingUp },
+        { title: 'Ressources Humaines', href: usersIndex(), icon: Users },
+        { title: 'Audit & Logs', href: activityLogsIndex(), icon: History },
     ],
     [UserRole.Engineer.value]: [
         { title: 'Mes Projets', href: dashboard(), icon: LayoutGrid },

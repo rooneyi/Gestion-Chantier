@@ -13,6 +13,7 @@ class Project extends Model
     protected $fillable = [
         'name',
         'description',
+        'start_date',
         'budget',
         'deadline',
         'status',
@@ -21,6 +22,7 @@ class Project extends Model
     ];
 
     protected $casts = [
+        'start_date' => 'date',
         'deadline' => 'date',
         'budget' => 'decimal:2',
     ];

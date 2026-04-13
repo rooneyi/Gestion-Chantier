@@ -98,6 +98,7 @@ export const ManagerDashboard = ({ projects, stats, engineers }: any) => {
     const [isLoading, setIsLoading] = React.useState(false);
     const [projectName, setProjectName] = React.useState('');
     const [projectDesc, setProjectDesc] = React.useState('');
+    const [startDate, setStartDate] = React.useState('');
     const [deadline, setDeadline] = React.useState('');
     const [engineerId, setEngineerId] = React.useState('');
     const [steps, setSteps] = React.useState([{ name: '', budget: '' }]);
@@ -126,6 +127,7 @@ export const ManagerDashboard = ({ projects, stats, engineers }: any) => {
             const payload = {
                 name: projectName,
                 description: projectDesc,
+                start_date: startDate,
                 deadline: deadline,
                 engineer_id: engineerId ? parseInt(engineerId) : null,
                 steps: steps.map(s => ({
@@ -155,6 +157,7 @@ export const ManagerDashboard = ({ projects, stats, engineers }: any) => {
             // Reset form
             setProjectName('');
             setProjectDesc('');
+            setStartDate('');
             setDeadline('');
             setEngineerId('');
             setSteps([{ name: '', budget: '' }]);
@@ -208,11 +211,15 @@ export const ManagerDashboard = ({ projects, stats, engineers }: any) => {
                                     <Input id="project-desc" value={projectDesc} onChange={e => setProjectDesc(e.target.value)} placeholder="ex: Rénovation complète du centre ville" />
                                 </div>
                                 <div>
+                                    <Label htmlFor="start-date">Date de début *</Label>
+                                    <Input id="start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required />
+                                </div>
+                                <div>
                                     <Label htmlFor="deadline">Date limite *</Label>
                                     <Input id="deadline" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} required />
                                 </div>
                                 <div>
-                                    <Label htmlFor="engineer-id">Ingénieur assigné</Label>
+                                    <Label htmlFor="engineer-id">Ingénieur/Chef de Chantier assigné</Label>
                                     {engineers && engineers.length > 0 ? (
                                         <select
                                             id="engineer-id"
@@ -220,7 +227,7 @@ export const ManagerDashboard = ({ projects, stats, engineers }: any) => {
                                             onChange={e => setEngineerId(e.target.value)}
                                             className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
                                         >
-                                            <option value="">-- Sélectionner un ingénieur --</option>
+                                            <option value="">-- Sélectionner un responsable --</option>
                                             {engineers.map((eng: any) => (
                                                 <option key={eng.id} value={eng.id}>
                                                     {eng.name} ({eng.email})
@@ -229,7 +236,7 @@ export const ManagerDashboard = ({ projects, stats, engineers }: any) => {
                                         </select>
                                     ) : (
                                         <p className="text-sm text-amber-600 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                                            ⚠️ Aucun ingénieur disponible. <a href="/users" className="font-semibold underline">Créez d'abord les utilisateurs</a>
+                                            ⚠️ Aucun responsable disponible. <a href="/users" className="font-semibold underline">Créez d'abord les utilisateurs</a>
                                         </p>
                                     )}
                                 </div>
@@ -358,6 +365,7 @@ export const ManagerDashboard = ({ projects, stats, engineers }: any) => {
                             <tr className="bg-slate-50/50 dark:bg-slate-800/30">
                                 <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b">Chantier</th>
                                 <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b">Superviseur</th>
+                                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b">Status</th>
                                 <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b">Progression</th>
                                 <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b text-right">Action</th>
                             </tr>
@@ -375,6 +383,15 @@ export const ManagerDashboard = ({ projects, stats, engineers }: any) => {
                                                 {p.engineer?.name.split(' ').map((n: any) => n[0]).join('')}
                                             </div>
                                             <span className="text-sm font-medium">{p.engineer?.name || 'Inconnu'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-5">
+                                        <div className="inline-flex items-center gap-2">
+                                            {p.status === 'en_cours' && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>}
+                                            {p.status === 'termine' && <div className="w-2 h-2 rounded-full bg-green-500"></div>}
+                                            {p.status === 'initialisation' && <div className="w-2 h-2 rounded-full bg-slate-400"></div>}
+                                            {p.status === 'planifie' && <div className="w-2 h-2 rounded-full bg-indigo-500"></div>}
+                                            <span className="text-xs font-bold text-muted-foreground uppercase">{p.status.replace('_', ' ')}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-5">

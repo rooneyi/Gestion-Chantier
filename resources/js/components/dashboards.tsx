@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react';
 import {
     Chart as ChartJS,
     ArcElement,
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react';
 import React from 'react';
 import { Doughnut, Bar } from 'react-chartjs-2';
+import { store } from '@/actions/App/Http/Controllers/Api/ProjectController';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,8 +39,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { store } from '@/actions/App/Http/Controllers/Api/ProjectController';
-import { router } from '@inertiajs/react';
 
 ChartJS.register(
     ArcElement,
@@ -148,6 +148,7 @@ export const ManagerDashboard = ({ projects, stats }: any) => {
                 const error = await response.json();
                 console.error('Error:', error);
                 alert('Erreur lors de la création du projet');
+
                 return;
             }
 

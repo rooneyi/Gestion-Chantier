@@ -10,4 +10,10 @@ class ActivityLog extends Model
 {
     /** @use HasFactory<ActivityLogFactory> */
     use HasFactory;
+
+    protected $fillable = ['user_id', 'action', 'description', 'properties', 'ip_address'];
+
+    protected $casts = [
+        'properties' => 'json',
+    ];
 }

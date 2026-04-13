@@ -37,6 +37,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { store } from '@/actions/App/Http/Controllers/Api/ProjectController';
+import { router } from '@inertiajs/react';
 
 ChartJS.register(
     ArcElement,
@@ -93,9 +95,22 @@ const StatCard = ({ title, value, subValue, icon: Icon, trend, trendValue }: any
 export const ManagerDashboard = ({ projects, stats }: any) => {
     // --- État pour la modale de création de projet ---
     const [open, setOpen] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(false);
     const [projectName, setProjectName] = React.useState('');
     const [projectDesc, setProjectDesc] = React.useState('');
+    const [deadline, setDeadline] = React.useState('');
+    const [engineerId, setEngineerId] = React.useState('');
     const [steps, setSteps] = React.useState([{ name: '', budget: '' }]);
+    const [manualBudget, setManualBudget] = React.useState('');
+
+    // Calculate total budget from steps
+    const calculatedBudget = React.useMemo(() => {
+        return steps.reduce((sum, step) => {
+            return sum + (parseFloat(step.budget) || 0);
+        }, 0);
+    }, [steps]);
+
+    const finalBudget = manualBudget ? parseFloat(manualBudget) : calculatedBudget;
 
     const handleStepChange = (idx: number, field: 'name' | 'budget', value: string) => {
         setSteps(steps => steps.map((s, i) => i === idx ? { ...s, [field]: value } : s));
@@ -103,14 +118,56 @@ export const ManagerDashboard = ({ projects, stats }: any) => {
     const addStep = () => setSteps(steps => [...steps, { name: '', budget: '' }]);
     const removeStep = (idx: number) => setSteps(steps => steps.length > 1 ? steps.filter((_, i) => i !== idx) : steps);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Appel API ou Inertia.post('/projects', ...)
-        // Exemple: { name: projectName, description: projectDesc, steps: steps.map(s => ({ name: s.name, budget: parseFloat(s.budget) })) }
-        setOpen(false);
-        setProjectName('');
-        setProjectDesc('');
-        setSteps([{ name: '', budget: '' }]);
+        setIsLoading(true);
+
+        try {
+            const payload = {
+                name: projectName,
+                description: projectDesc,
+                deadline: deadline,
+                engineer_id: engineerId || null,
+                steps: steps.map(s => ({
+                    name: s.name,
+                    budget: parseFloat(s.budget)
+                })),
+                ...(manualBudget && { budget: finalBudget })
+            };
+
+            const response = await fetch(store.url(), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                console.error('Error:', error);
+                alert('Erreur lors de la création du projet');
+                return;
+            }
+
+            // Reset form
+            setProjectName('');
+            setProjectDesc('');
+            setDeadline('');
+            setEngineerId('');
+            setSteps([{ name: '', budget: '' }]);
+            setManualBudget('');
+            setOpen(false);
+
+            // Refresh dashboard
+            router.visit('/dashboard');
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Erreur lors de la création du projet');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const barData = {
@@ -138,33 +195,51 @@ export const ManagerDashboard = ({ projects, stats }: any) => {
                         <DialogTrigger asChild>
                             <Button size="sm" className="rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-sm">Nouveau Site</Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-h-[90vh] overflow-y-auto">
                             <DialogTitle>Créer un nouveau projet</DialogTitle>
                             <form className="space-y-4 mt-4" onSubmit={handleSubmit}>
                                 <div>
-                                    <Label htmlFor="project-name">Nom du projet</Label>
-                                    <Input id="project-name" value={projectName} onChange={e => setProjectName(e.target.value)} required />
+                                    <Label htmlFor="project-name">Nom du projet *</Label>
+                                    <Input id="project-name" value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="ex: Chantier Centre Ville" required />
                                 </div>
                                 <div>
                                     <Label htmlFor="project-desc">Description</Label>
-                                    <Input id="project-desc" value={projectDesc} onChange={e => setProjectDesc(e.target.value)} />
+                                    <Input id="project-desc" value={projectDesc} onChange={e => setProjectDesc(e.target.value)} placeholder="ex: Rénovation complète du centre ville" />
+                                </div>
+                                <div>
+                                    <Label htmlFor="deadline">Date limite *</Label>
+                                    <Input id="deadline" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} required />
+                                </div>
+                                <div>
+                                    <Label htmlFor="engineer-id">Ingénieur assigné</Label>
+                                    <Input id="engineer-id" type="number" value={engineerId} onChange={e => setEngineerId(e.target.value)} placeholder="ID du technicien" />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Étapes & Budgets</Label>
+                                    <div className="flex justify-between items-center">
+                                        <Label>Étapes & Budgets</Label>
+                                        <span className="text-sm font-semibold text-primary">Total calculé: {calculatedBudget.toLocaleString('fr-FR')} €</span>
+                                    </div>
                                     {steps.map((step, idx) => (
                                         <div key={idx} className="flex gap-2 items-center">
                                             <Input placeholder={`Étape ${idx + 1}`} value={step.name} onChange={e => handleStepChange(idx, 'name', e.target.value)} required className="flex-1" />
-                                            <Input placeholder="Budget (€)" type="number" min="0" value={step.budget} onChange={e => handleStepChange(idx, 'budget', e.target.value)} required className="w-32" />
+                                            <Input placeholder="Budget (€)" type="number" min="0" step="0.01" value={step.budget} onChange={e => handleStepChange(idx, 'budget', e.target.value)} required className="w-32" />
                                             <Button type="button" variant="ghost" size="icon" onClick={() => removeStep(idx)} disabled={steps.length === 1}>-</Button>
                                         </div>
                                     ))}
-                                    <Button type="button" variant="outline" size="sm" onClick={addStep}>Ajouter une étape</Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={addStep}>+ Ajouter une étape</Button>
+                                </div>
+                                <div>
+                                    <Label htmlFor="manual-budget">Budget final (optionnel - laisser vide pour utiliser le total calculé)</Label>
+                                    <Input id="manual-budget" type="number" min="0" step="0.01" value={manualBudget} onChange={e => setManualBudget(e.target.value)} placeholder={calculatedBudget.toLocaleString('fr-FR')} />
+                                    {manualBudget && parseFloat(manualBudget) !== calculatedBudget && (
+                                        <p className="text-xs text-amber-600 mt-1">⚠️ Budget différent du total calculé ({finalBudget.toLocaleString('fr-FR')} € au lieu de {calculatedBudget.toLocaleString('fr-FR')} €)</p>
+                                    )}
                                 </div>
                                 <div className="flex justify-end gap-2 pt-2">
                                     <DialogClose asChild>
                                         <Button type="button" variant="outline">Annuler</Button>
                                     </DialogClose>
-                                    <Button type="submit">Créer le projet</Button>
+                                    <Button type="submit" disabled={isLoading}>{isLoading ? 'Création...' : 'Créer le projet'}</Button>
                                 </div>
                             </form>
                         </DialogContent>

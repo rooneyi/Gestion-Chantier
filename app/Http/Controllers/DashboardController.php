@@ -27,7 +27,7 @@ class DashboardController extends Controller
         ];
 
         if ($user->role === UserRole::Manager) {
-            $data['projects'] = Project::with('engineer')->latest()->get();
+            $data['projects'] = Project::with(['engineer', 'steps'])->latest()->get();
             $data['stats'] = [
                 'total_budget' => Project::sum('budget'),
                 'active_projects' => Project::where('status', 'en_cours')->count(),

@@ -5,6 +5,7 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\Api\FilterController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AttendanceInitializationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
@@ -44,8 +45,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
     Route::post('attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in');
     Route::put('attendance/{attendance}/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out');
+    Route::put('attendance/{attendance}/status', [AttendanceController::class, 'updateStatus'])->name('attendance.update-status');
     Route::get('attendance/worker/{worker}', [AttendanceController::class, 'workerOverview'])->name('attendance.worker');
     Route::get('attendance/monthly', [AttendanceController::class, 'monthlyOverview'])->name('attendance.monthly');
+
+    // Attendance Initialization routes (API)
+    Route::post('api/attendance/initialize', [AttendanceInitializationController::class, 'initializeForProject']);
+    Route::post('api/projects/{project}/workers', [AttendanceInitializationController::class, 'assignWorkers']);
+    Route::get('api/workers/available', [AttendanceInitializationController::class, 'getAvailableWorkers']);
+    Route::get('api/projects/{project}/workers', [AttendanceInitializationController::class, 'getProjectWorkers']);
 
     // Absence Notification routes
     Route::get('absences', [AbsenceNotificationController::class, 'index'])->name('absences.index');

@@ -1,0 +1,31 @@
+<?php
+
+namespace App\Enums;
+
+enum AttendanceStatus: string
+{
+    case Present = 'present';
+    case Absent = 'absent';
+    case Late = 'retard';
+    case Sick = 'malade';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Present => 'Présent',
+            self::Absent => 'Absent',
+            self::Late => 'Retard',
+            self::Sick => 'Malade',
+        };
+    }
+
+    public function color(): string
+    {
+        return match ($this) {
+            self::Present => 'green',
+            self::Absent => 'red',
+            self::Late => 'orange',
+            self::Sick => 'yellow',
+        };
+    }
+}

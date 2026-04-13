@@ -47,6 +47,11 @@ class Project extends Model
         return $this->hasMany(Attendance::class);
     }
 
+    public function workers()
+    {
+        return $this->belongsToMany(User::class, 'project_user');
+    }
+
     public function steps()
     {
         return $this->hasMany(ProjectStep::class)->orderBy('order');

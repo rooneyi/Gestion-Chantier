@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AttendanceStatus;
 use Database\Factories\AttendanceFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +28,7 @@ class Attendance extends Model
         'date' => 'date',
         'check_in' => 'datetime',
         'check_out' => 'datetime',
+        'status' => AttendanceStatus::class,
     ];
 
     public function user(): BelongsTo

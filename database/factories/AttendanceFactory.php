@@ -3,6 +3,8 @@
 namespace Database\Factories;
 
 use App\Models\Attendance;
+use App\Models\Project;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +20,14 @@ class AttendanceFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'user_id' => User::factory(),
+            'project_id' => Project::factory(),
+            'date' => now()->toDateString(),
+            'check_in' => null,
+            'check_out' => null,
+            'status' => 'present',
+            'latitude' => null,
+            'longitude' => null,
         ];
     }
 }

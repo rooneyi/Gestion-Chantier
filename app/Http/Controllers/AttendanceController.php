@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AttendanceStatus;
 use App\Models\Attendance;
 use App\Models\Project;
 use App\Models\User;
@@ -34,6 +35,16 @@ class AttendanceController extends Controller
         $projects = Project::select('id', 'name')->orderBy('name')->get();
         $workers = User::where('role', 'worker')->select('id', 'name')->orderBy('name')->get();
 
+        // Get available statuses
+        $statuses = array_map(
+            fn (AttendanceStatus $status) => [
+                'value' => $status->value,
+                'label' => $status->label(),
+                'color' => $status->color(),
+            ],
+            AttendanceStatus::cases()
+        );
+
         return Inertia::render('attendance/index', [
             'attendances' => $attendances,
             'date' => $date->format('Y-m-d'),
@@ -45,6 +56,7 @@ class AttendanceController extends Controller
             ],
             'projects' => $projects,
             'workers' => $workers,
+            'statuses' => $statuses,
             'selectedProject' => $projectId,
         ]);
     }
@@ -54,6 +66,7 @@ class AttendanceController extends Controller
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
             'project_id' => 'required|exists:projects,id',
+            'status' => 'nullable|string|in:present,absent,retard,malade',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
         ]);
@@ -75,7 +88,7 @@ class AttendanceController extends Controller
             'project_id' => $validated['project_id'],
             'date' => Carbon::today(),
             'check_in' => Carbon::now(),
-            'status' => 'present',
+            'status' => $validated['status'] ?? 'present',
             'latitude' => $validated['latitude'] ?? null,
             'longitude' => $validated['longitude'] ?? null,
         ]);
@@ -101,6 +114,22 @@ class AttendanceController extends Controller
 
         return response()->json([
             'message' => 'Départ enregistré',
+            'attendance' => $attendance,
+        ]);
+    }
+
+    public function updateStatus(Request $request, Attendance $attendance)
+    {
+        $validated = $request->validate([
+            'status' => 'required|string|in:present,absent,retard,malade',
+        ]);
+
+        $attendance->update([
+            'status' => $validated['status'],
+        ]);
+
+        return response()->json([
+            'message' => 'Statut mis à jour',
             'attendance' => $attendance,
         ]);
     }

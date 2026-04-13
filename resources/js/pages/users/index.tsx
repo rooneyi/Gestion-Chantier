@@ -1,4 +1,5 @@
 import React from 'react';
+import { router } from '@inertiajs/react';
 import { Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,10 +12,9 @@ import {
   DialogTitle,
   DialogClose
 } from '@/components/ui/dialog';
-import { index, store, destroy } from '@/actions/App/Http/Controllers/UserController';
-import { router } from '@inertiajs/react';
+import { store } from '@/actions/App/Http/Controllers/UserController';
 
-export default function UsersIndex({ users, roles }: any) {
+export default function UsersIndex({ users }: any) {
   const [open, setOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [formData, setFormData] = React.useState({
@@ -65,7 +65,9 @@ export default function UsersIndex({ users, roles }: any) {
   };
 
   const handleDelete = async (userId: number) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
+      return;
+    }
 
     try {
       const response = await fetch(`/users/${userId}`, {
@@ -96,6 +98,7 @@ export default function UsersIndex({ users, roles }: any) {
       'magasinier': 'Magasinier',
       'chef-chantier': 'Chef Chantier',
     };
+
     return roleMap[roleValue.toLowerCase()] || roleValue;
   };
 

@@ -303,35 +303,44 @@ export const ManagerDashboard = ({ projects, stats, engineers }: any) => {
                         <CardTitle className="text-lg font-bold text-center">Engagement Global</CardTitle>
                     </CardHeader>
                     <CardContent className="flex-1 flex flex-col justify-center gap-8 pb-10">
-                        <div className="relative w-44 h-44 mx-auto group">
-                            <Doughnut
-                                data={{
-                                    datasets: [{
-                                        data: [28, 72],
-                                        backgroundColor: ['hsl(var(--primary))', 'hsl(var(--muted))'],
-                                        borderWidth: 0
-                                    }]
-                                }}
-                                options={{
-                                    plugins: { legend: { display: false } },
-                                    cutout: '82%'
-                                }}
-                            />
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-4xl font-bold tracking-tighter">28%</span>
-                                <span className="text-[10px] font-bold uppercase text-muted-foreground">Consommé</span>
+                        {projects.length > 0 ? (
+                            <>
+                                <div className="relative w-44 h-44 mx-auto group">
+                                    <Doughnut
+                                        data={{
+                                            datasets: [{
+                                                data: [stats.total_budget, Math.max(0, stats.total_budget * 0.5)],
+                                                backgroundColor: ['hsl(var(--primary))', 'hsl(var(--muted))'],
+                                                borderWidth: 0,
+                                            }]
+                                        }}
+                                        options={{
+                                            plugins: { legend: { display: false } },
+                                            cutout: '82%'
+                                        }}
+                                    />
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <span className="text-3xl font-bold tracking-tighter">{projects.length}</span>
+                                        <span className="text-[10px] font-bold uppercase text-muted-foreground">Chantier(s)</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-3 px-2">
+                                    <div className="flex justify-between items-center text-sm font-medium">
+                                        <span className="flex items-center gap-2 text-muted-foreground"><div className="w-2 h-2 rounded-full bg-primary"></div>Budget Total</span>
+                                        <span className="font-bold underline decoration-primary/20">{(stats.total_budget / 1000).toFixed(1)}k €</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm font-medium">
+                                        <span className="flex items-center gap-2 text-muted-foreground"><div className="w-2 h-2 rounded-full bg-slate-200"></div>En cours</span>
+                                        <span className="font-bold underline decoration-slate-200">{stats.active_projects}</span>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center gap-4 py-8">
+                                <p className="text-center text-muted-foreground">Aucun chantier créé</p>
+                                <Button variant="outline" size="sm">Créer le premier chantier</Button>
                             </div>
-                        </div>
-                        <div className="space-y-3 px-2">
-                            <div className="flex justify-between items-center text-sm font-medium">
-                                <span className="flex items-center gap-2 text-muted-foreground"><div className="w-2 h-2 rounded-full bg-primary"></div>Réalisé</span>
-                                <span className="font-bold underline decoration-primary/20">72,000 €</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm font-medium">
-                                <span className="flex items-center gap-2 text-muted-foreground"><div className="w-2 h-2 rounded-full bg-slate-200"></div>Prévisionnel</span>
-                                <span className="font-bold underline decoration-slate-200">180,000 €</span>
-                            </div>
-                        </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

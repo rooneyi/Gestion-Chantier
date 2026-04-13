@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AbsenceNotificationController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\Api\FilterController;
 use App\Http\Controllers\Api\ProjectController;
@@ -45,6 +46,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('attendance/{attendance}/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out');
     Route::get('attendance/worker/{worker}', [AttendanceController::class, 'workerOverview'])->name('attendance.worker');
     Route::get('attendance/monthly', [AttendanceController::class, 'monthlyOverview'])->name('attendance.monthly');
+
+    // Absence Notification routes
+    Route::get('absences', [AbsenceNotificationController::class, 'index'])->name('absences.index');
+    Route::get('absences/{absenceNotification}', [AbsenceNotificationController::class, 'show'])->name('absences.show');
+    Route::post('absences/{absenceNotification}/read', [AbsenceNotificationController::class, 'markAsRead'])->name('absences.read');
+    Route::post('absences/{absenceNotification}/resolve', [AbsenceNotificationController::class, 'resolve'])->name('absences.resolve');
+    Route::get('api/absences/pending', [AbsenceNotificationController::class, 'getPendingAbsences']);
+    Route::get('api/absences/filter', [AbsenceNotificationController::class, 'filter']);
 });
 
 require __DIR__.'/settings.php';

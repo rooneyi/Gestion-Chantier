@@ -32,6 +32,7 @@ class AttendanceController extends Controller
         $absent = User::where('role', '!=', 'manager')->count() - $attendances->count();
 
         $projects = Project::select('id', 'name')->orderBy('name')->get();
+        $workers = User::where('role', 'worker')->select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('attendance/index', [
             'attendances' => $attendances,
@@ -43,6 +44,7 @@ class AttendanceController extends Controller
                 'total_workers' => User::where('role', '!=', 'manager')->count(),
             ],
             'projects' => $projects,
+            'workers' => $workers,
             'selectedProject' => $projectId,
         ]);
     }

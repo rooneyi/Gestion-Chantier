@@ -63,7 +63,7 @@ class AbsenceDetectionService
                 ->whereDate('date', $forDate->toDateString())
                 ->exists();
 
-            if (!$hasAttendance) {
+            if (! $hasAttendance) {
                 $notification = $this->createAbsenceNotification($worker, $project, $forDate);
                 $this->notifyManager($project, $worker, $notification);
                 $notificationsCreated++;
@@ -106,13 +106,13 @@ class AbsenceDetectionService
         foreach ($managers as $manager) {
             try {
                 $manager->notify(new AbsenceDetectedNotification($worker, $notification));
-                Log::info("Absence notification sent", [
+                Log::info('Absence notification sent', [
                     'worker_id' => $worker->id,
                     'project_id' => $project->id,
                     'manager_id' => $manager->id,
                 ]);
             } catch (\Exception $e) {
-                Log::error("Failed to send absence notification", [
+                Log::error('Failed to send absence notification', [
                     'error' => $e->getMessage(),
                     'worker_id' => $worker->id,
                     'project_id' => $project->id,

@@ -30,10 +30,10 @@ class AbsenceDetectedNotification extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject("Absence détectée: {$this->absent_user->name}")
-            ->greeting("Absence détectée!")
+            ->greeting('Absence détectée!')
             ->line("L'ouvrier **{$this->absent_user->name}** n'a pas de pointage pour le **{$date}**.")
             ->line("Projet: **{$projectName}**")
-            ->line("Veuillez vérifier son statut ou noter la raison de son absence.")
+            ->line('Veuillez vérifier son statut ou noter la raison de son absence.')
             ->action('Voir les absences', url('/attendance'))
             ->line('Merci d\'utiliser notre application!');
     }

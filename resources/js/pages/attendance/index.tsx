@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function AttendanceIndex({ attendances, date, statistics, projects, selectedProject }: any) {
+export default function AttendanceIndex({ attendances, date, statistics, projects, workers, selectedProject }: any) {
   const [displayDate, setDisplayDate] = useState(date);
   const [displayProject, setDisplayProject] = useState(selectedProject);
   const [showCheckIn, setShowCheckIn] = useState(false);
@@ -264,7 +264,11 @@ export default function AttendanceIndex({ attendances, date, statistics, project
                       required
                     >
                       <option value="">-- Sélectionner --</option>
-                      {/* Workers will be populated from context */}
+                      {workers?.map((worker: any) => (
+                        <option key={worker.id} value={worker.id}>
+                          {worker.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

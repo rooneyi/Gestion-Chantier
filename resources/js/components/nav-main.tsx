@@ -14,7 +14,7 @@ export function NavMain({ items = [], label }: { items: NavItem[], label?: strin
 
     return (
         <SidebarGroup className="px-2 py-0">
-            {label && <SidebarGroupLabel className="px-4 font-black uppercase text-[10px] tracking-[0.2em] opacity-40 mb-2">{label}</SidebarGroupLabel>}
+            {label && <SidebarGroupLabel className="mb-2 px-4 text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-500/80">{label}</SidebarGroupLabel>}
             <SidebarMenu>
                 {items.map((item) => (
                     <SidebarMenuItem key={item.title}>
@@ -22,11 +22,11 @@ export function NavMain({ items = [], label }: { items: NavItem[], label?: strin
                             asChild
                             isActive={isCurrentUrl(item.href)}
                             tooltip={item.title}
-                            className="data-[active=true]:bg-primary/10 data-[active=true]:text-primary rounded-xl h-10 px-4 font-bold transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+                            className="h-11 rounded-2xl px-4 font-medium text-slate-300 transition-all hover:bg-white/6 hover:text-white data-[active=true]:bg-gradient-to-r data-[active=true]:from-blue-500 data-[active=true]:to-blue-600 data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:shadow-blue-500/25"
                         >
                             <Link href={item.href} prefetch className="flex items-center gap-3">
-                                {item.icon && <item.icon className="size-5" />}
-                                <span className="text-[13px] tracking-tight">{item.title}</span>
+                                {item.icon && <item.icon className="size-[18px]" />}
+                                <span className="text-[13px] font-medium tracking-tight">{item.title}</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>

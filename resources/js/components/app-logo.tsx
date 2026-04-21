@@ -2,15 +2,18 @@ import AppLogoIcon from '@/components/app-logo-icon';
 
 export default function AppLogo() {
     return (
-        <>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                <AppLogoIcon className="size-5 fill-current text-white dark:text-black" />
+        <div className="flex items-center gap-3">
+            <div className="flex aspect-square size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/30">
+                <AppLogoIcon className="size-5 fill-current text-white" />
             </div>
-            <div className="ml-1 grid flex-1 text-left text-sm">
-                <span className="mb-0.5 truncate leading-tight font-semibold">
-                    Gestion de Chantier
+            <div className="grid flex-1 text-left leading-tight">
+                <span className="truncate text-[15px] font-semibold text-white">
+                    GestionChantier
+                </span>
+                <span className="truncate text-[11px] text-slate-400">
+                    Lubumbashi
                 </span>
             </div>
-        </>
+        </div>
     );
 }

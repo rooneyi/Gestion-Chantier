@@ -1,4 +1,3 @@
-import { router } from '@inertiajs/react';
 import {
     Chart as ChartJS,
     ArcElement,
@@ -7,6 +6,8 @@ import {
     CategoryScale,
     LinearScale,
     BarElement,
+    LineElement,
+    PointElement,
     Title,
 } from 'chart.js';
 import {
@@ -22,28 +23,28 @@ import {
     ChevronRight,
     PlusCircle,
     HardHat,
-    AlertCircle
+    AlertCircle,
 } from 'lucide-react';
 import React from 'react';
-import { Doughnut, Bar } from 'react-chartjs-2';
+import { Doughnut, Line } from 'react-chartjs-2';
 import { apiList, updateStatus } from '@/actions/App/Http/Controllers/AttendanceController';
 import {
     assignWorkers,
     initializeForProject,
 } from '@/actions/App/Http/Controllers/AttendanceInitializationController';
-import { store } from '@/actions/App/Http/Controllers/Api/ProjectController';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogTitle,
-  DialogClose
+    Dialog,
+    DialogTrigger,
+    DialogContent,
+    DialogTitle,
+    DialogClose,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 ChartJS.register(
     ArcElement,
@@ -51,39 +52,94 @@ ChartJS.register(
     Legend,
     CategoryScale,
     LinearScale,
+    LineElement,
+    PointElement,
     BarElement,
     Title
 );
 
 const StatusBadge = ({ status }: { status: string }) => {
     const variants: Record<string, string> = {
-        en_cours: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-100 dark:border-blue-800",
-        initialisation: "bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border-slate-100 dark:border-slate-800",
-        termine: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800",
-        planifie: "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800",
+        en_cours: 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900/60',
+        initialisation: 'bg-slate-50 text-slate-700 border-slate-100 dark:bg-slate-900/40 dark:text-slate-300 dark:border-slate-800',
+        termine: 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/60',
+        planifie: 'bg-violet-50 text-violet-700 border-violet-100 dark:bg-violet-950/30 dark:text-violet-300 dark:border-violet-900/60',
     };
+
+    const label = status.replaceAll('_', ' ');
     
     return (
-        <Badge variant="outline" className={`${variants[status] || variants.initialisation} px-2 py-0 h-6 text-[11px] font-semibold border`}>
-            {status.replace('_', ' ')}
+        <Badge
+            variant="outline"
+            className={cn('h-6 px-2.5 py-0 text-[11px] font-semibold capitalize tracking-wide', variants[status] || variants.initialisation)}
+        >
+            {label}
         </Badge>
     );
 };
 
-const StatCard = ({ title, value, subValue, icon: Icon, trend, trendValue }: any) => {
+const statAccents = {
+    blue: {
+        border: 'border-blue-100/70 dark:border-blue-900/40',
+        glow: 'bg-blue-500/8',
+        icon: 'border-blue-100 bg-blue-50 text-blue-600 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300',
+        strip: 'bg-blue-500',
+    },
+    emerald: {
+        border: 'border-emerald-100/70 dark:border-emerald-900/40',
+        glow: 'bg-emerald-500/8',
+        icon: 'border-emerald-100 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300',
+        strip: 'bg-emerald-500',
+    },
+    orange: {
+        border: 'border-orange-100/70 dark:border-orange-900/40',
+        glow: 'bg-orange-500/8',
+        icon: 'border-orange-100 bg-orange-50 text-orange-600 dark:border-orange-900/60 dark:bg-orange-950/40 dark:text-orange-300',
+        strip: 'bg-orange-500',
+    },
+    violet: {
+        border: 'border-violet-100/70 dark:border-violet-900/40',
+        glow: 'bg-violet-500/8',
+        icon: 'border-violet-100 bg-violet-50 text-violet-600 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-300',
+        strip: 'bg-violet-500',
+    },
+} as const;
+
+const StatCard = ({
+    title,
+    value,
+    subValue,
+    icon: Icon,
+    trend,
+    trendValue,
+    accent = 'blue',
+}: any) => {
+    const tone = statAccents[accent as keyof typeof statAccents] || statAccents.blue;
+
     return (
-        <Card className="shadow-none group border-border/50 bg-card/60 backdrop-blur-sm">
-            <CardContent className="p-6">
-                <div className="flex items-center justify-between pb-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
-                    <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        <Card className={cn('group relative overflow-hidden border bg-background/85 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.28)] backdrop-blur-xl', tone.border)}>
+            <div className={cn('absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100', tone.glow)} />
+            <div className={cn('absolute inset-x-0 top-0 h-1', tone.strip)} />
+            <CardContent className="relative p-5 sm:p-6">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-muted-foreground">{title}</p>
+                        <h4 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">{value}</h4>
+                    </div>
+                    <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border', tone.icon)}>
+                        <Icon className="h-5 w-5" />
+                    </div>
                 </div>
                 <div className="flex flex-col gap-1">
-                    <h4 className="text-2xl font-bold tracking-tight">{value}</h4>
                     {(trendValue || subValue) && (
                         <div className="flex items-center gap-1.5 pt-1">
                             {trendValue && (
-                                <span className={`inline-flex items-center text-[11px] font-bold ${trend === 'up' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                <span
+                                    className={cn(
+                                        'inline-flex items-center gap-0.5 text-[11px] font-bold',
+                                        trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                                    )}
+                                >
                                     {trend === 'up' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                                     {trendValue}
                                 </span>
@@ -97,327 +153,181 @@ const StatCard = ({ title, value, subValue, icon: Icon, trend, trendValue }: any
     );
 };
 
-export const ManagerDashboard = ({ projects, stats, engineers }: any) => {
-    // --- État pour la modale de création de projet ---
-    const [open, setOpen] = React.useState(false);
-    const [isLoading, setIsLoading] = React.useState(false);
-    const [projectName, setProjectName] = React.useState('');
-    const [projectDesc, setProjectDesc] = React.useState('');
-    const [startDate, setStartDate] = React.useState('');
-    const [deadline, setDeadline] = React.useState('');
-    const [engineerId, setEngineerId] = React.useState('');
-    const [steps, setSteps] = React.useState([{ name: '', budget: '' }]);
-    const [manualBudget, setManualBudget] = React.useState('');
-
-    // Calculate total budget from steps
-    const calculatedBudget = React.useMemo(() => {
-        return steps.reduce((sum, step) => {
-            return sum + (parseFloat(step.budget) || 0);
-        }, 0);
-    }, [steps]);
-
-    const finalBudget = manualBudget ? parseFloat(manualBudget) : calculatedBudget;
-
-    const handleStepChange = (idx: number, field: 'name' | 'budget', value: string) => {
-        setSteps(steps => steps.map((s, i) => i === idx ? { ...s, [field]: value } : s));
-    };
-    const addStep = () => setSteps(steps => [...steps, { name: '', budget: '' }]);
-    const removeStep = (idx: number) => setSteps(steps => steps.length > 1 ? steps.filter((_, i) => i !== idx) : steps);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-
-        try {
-            const payload = {
-                name: projectName,
-                description: projectDesc,
-                start_date: startDate,
-                deadline: deadline,
-                engineer_id: engineerId ? parseInt(engineerId) : null,
-                steps: steps.map(s => ({
-                    name: s.name,
-                    budget: parseFloat(s.budget)
-                })),
-                ...(manualBudget && { budget: finalBudget })
-            };
-
-            const response = await fetch(store.url(), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                console.error('Error:', error);
-                alert('Erreur lors de la création du projet');
-
-                return;
-            }
-
-            // Reset form
-            setProjectName('');
-            setProjectDesc('');
-            setStartDate('');
-            setDeadline('');
-            setEngineerId('');
-            setSteps([{ name: '', budget: '' }]);
-            setManualBudget('');
-            setOpen(false);
-
-            // Refresh dashboard
-            router.visit('/dashboard');
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Erreur lors de la création du projet');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const barData = {
-        labels: projects.map((p: any) => p.name.length > 12 ? p.name.substring(0, 10) + '...' : p.name),
+export const ManagerDashboard = () => {
+    const lineData = {
+        labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin'],
         datasets: [{
-            label: 'Budget (€)',
-            data: projects.map((p: any) => p.budget),
-            backgroundColor: 'hsl(var(--primary))',
-            borderRadius: 4,
-            barThickness: 20,
+            label: 'montant',
+            data: [45000, 52000, 48000, 61000, 55000, 68000],
+            borderColor: '#3b82f6',
+            backgroundColor: '#3b82f6',
+            pointBackgroundColor: '#3b82f6',
+            pointBorderColor: '#3b82f6',
+            borderWidth: 2,
+            tension: 0.36,
+            fill: false,
+            pointRadius: 4,
+            pointHoverRadius: 6,
         }]
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex items-end justify-between">
-                <div className="space-y-1">
-                    <h1 className="text-3xl font-bold tracking-tight">Directeur Général</h1>
-                    <p className="text-sm text-muted-foreground">Supervision stratégique des actifs et budget.</p>
+        <div className="space-y-6">
+            <div className="space-y-1">
+                <h1 className="text-[30px] font-bold tracking-tight text-slate-900 dark:text-white">Tableau de bord</h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Vue d'ensemble des activités en temps réel</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+                <div className="rounded-[18px] border border-white/60 bg-white p-6 shadow-[0_14px_35px_-24px_rgba(15,23,42,0.35)]">
+                    <div className="flex items-start justify-between">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-500 text-white shadow-lg shadow-blue-500/20">
+                            <ClipboardCheck className="h-5 w-5" />
+                        </div>
+                        <span className="text-[11px] font-semibold text-emerald-500">+12%</span>
+                    </div>
+                    <div className="mt-6 space-y-1">
+                        <div className="text-2xl font-semibold tracking-tight text-slate-950">1,247</div>
+                        <div className="text-sm text-slate-500">Matériaux en stock</div>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Rapports</Button>
-                    <Dialog open={open} onOpenChange={setOpen}>
-                        <DialogTrigger asChild>
-                            <Button size="sm" className="rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-sm">Nouveau Site</Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-h-[90vh] overflow-y-auto">
-                            <DialogTitle>Créer un nouveau projet</DialogTitle>
-                            <form className="space-y-4 mt-4" onSubmit={handleSubmit}>
-                                <div>
-                                    <Label htmlFor="project-name">Nom du projet *</Label>
-                                    <Input id="project-name" value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="ex: Chantier Centre Ville" required />
-                                </div>
-                                <div>
-                                    <Label htmlFor="project-desc">Description</Label>
-                                    <Input id="project-desc" value={projectDesc} onChange={e => setProjectDesc(e.target.value)} placeholder="ex: Rénovation complète du centre ville" />
-                                </div>
-                                <div>
-                                    <Label htmlFor="start-date">Date de début *</Label>
-                                    <Input id="start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required />
-                                </div>
-                                <div>
-                                    <Label htmlFor="deadline">Date limite *</Label>
-                                    <Input id="deadline" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} required />
-                                </div>
-                                <div>
-                                    <Label htmlFor="engineer-id">Ingénieur/Chef de Chantier assigné</Label>
-                                    {engineers && engineers.length > 0 ? (
-                                        <select
-                                            id="engineer-id"
-                                            value={engineerId}
-                                            onChange={e => setEngineerId(e.target.value)}
-                                            className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                                        >
-                                            <option value="">-- Sélectionner un responsable --</option>
-                                            {engineers.map((eng: any) => (
-                                                <option key={eng.id} value={eng.id}>
-                                                    {eng.name} ({eng.email})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <p className="text-sm text-amber-600 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                                            ⚠️ Aucun responsable disponible. <a href="/users" className="font-semibold underline">Créez d'abord les utilisateurs</a>
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <Label>Étapes & Budgets</Label>
-                                        <span className="text-sm font-semibold text-primary">Total calculé: {calculatedBudget.toLocaleString('fr-FR')} €</span>
-                                    </div>
-                                    {steps.map((step, idx) => (
-                                        <div key={idx} className="flex gap-2 items-center">
-                                            <Input placeholder={`Étape ${idx + 1}`} value={step.name} onChange={e => handleStepChange(idx, 'name', e.target.value)} required className="flex-1" />
-                                            <Input placeholder="Budget (€)" type="number" min="0" step="0.01" value={step.budget} onChange={e => handleStepChange(idx, 'budget', e.target.value)} required className="w-32" />
-                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeStep(idx)} disabled={steps.length === 1}>-</Button>
-                                        </div>
-                                    ))}
-                                    <Button type="button" variant="outline" size="sm" onClick={addStep}>+ Ajouter une étape</Button>
-                                </div>
-                                <div>
-                                    <Label htmlFor="manual-budget">Budget final (optionnel - laisser vide pour utiliser le total calculé)</Label>
-                                    <Input id="manual-budget" type="number" min="0" step="0.01" value={manualBudget} onChange={e => setManualBudget(e.target.value)} placeholder={calculatedBudget.toLocaleString('fr-FR')} />
-                                    {manualBudget && parseFloat(manualBudget) !== calculatedBudget && (
-                                        <p className="text-xs text-amber-600 mt-1">⚠️ Budget différent du total calculé ({finalBudget.toLocaleString('fr-FR')} € au lieu de {calculatedBudget.toLocaleString('fr-FR')} €)</p>
-                                    )}
-                                </div>
-                                <div className="flex justify-end gap-2 pt-2">
-                                    <DialogClose asChild>
-                                        <Button type="button" variant="outline">Annuler</Button>
-                                    </DialogClose>
-                                    <Button type="submit" disabled={isLoading}>{isLoading ? 'Création...' : 'Créer le projet'}</Button>
-                                </div>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+
+                <div className="rounded-[18px] border border-white/60 bg-white p-6 shadow-[0_14px_35px_-24px_rgba(15,23,42,0.35)]">
+                    <div className="flex items-start justify-between">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+                            <Users className="h-5 w-5" />
+                        </div>
+                        <span className="text-[11px] font-semibold text-emerald-500">+5%</span>
+                    </div>
+                    <div className="mt-6 space-y-1">
+                        <div className="text-2xl font-semibold tracking-tight text-slate-950">89</div>
+                        <div className="text-sm text-slate-500">Ouvriers actifs</div>
+                    </div>
+                </div>
+
+                <div className="rounded-[18px] border border-white/60 bg-white p-6 shadow-[0_14px_35px_-24px_rgba(15,23,42,0.35)]">
+                    <div className="flex items-start justify-between">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-500/20">
+                            <MapPin className="h-5 w-5" />
+                        </div>
+                        <span className="text-[11px] font-semibold text-rose-500">-2%</span>
+                    </div>
+                    <div className="mt-6 space-y-1">
+                        <div className="text-2xl font-semibold tracking-tight text-slate-950">34</div>
+                        <div className="text-sm text-slate-500">Équipements</div>
+                    </div>
+                </div>
+
+                <div className="rounded-[18px] border border-white/60 bg-white p-6 shadow-[0_14px_35px_-24px_rgba(15,23,42,0.35)]">
+                    <div className="flex items-start justify-between">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-500 text-white shadow-lg shadow-violet-500/20">
+                            <TrendingUp className="h-5 w-5" />
+                        </div>
+                        <span className="text-[11px] font-semibold text-emerald-500">+8%</span>
+                    </div>
+                    <div className="mt-6 space-y-1">
+                        <div className="text-2xl font-semibold tracking-tight text-slate-950">524K$</div>
+                        <div className="text-sm text-slate-500">Coût total</div>
+                    </div>
                 </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="Budget Total" value={`${(stats.total_budget / 1000).toFixed(1)}k €`} subValue={`${projects.length} chantier(s)`} icon={TrendingUp} />
-                <StatCard title="Chantiers Actifs" value={stats.active_projects} subValue="En cours actuellement" icon={MapPin} />
-                <StatCard title="Total Effectif" value={stats.total_workers} subValue="Ouvriers disponibles" icon={Users} />
-                <StatCard title="Missions" value={stats.total_tasks} subValue="Tâches à accomplir" icon={CheckCircle2} />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-                <Card className="lg:col-span-8 shadow-none border-border/50 bg-card/60 backdrop-blur-sm">
-                    <CardHeader className="pb-8">
-                        <CardTitle className="text-lg font-bold">Analyse Budgétaire par Site</CardTitle>
-                        <CardDescription className="text-xs">Visualisation de l'engagement financier par chantier</CardDescription>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                        <Card className="overflow-hidden border-0 bg-white shadow-[0_14px_40px_-22px_rgba(15,23,42,0.30)] xl:col-span-8">
+                    <CardHeader className="px-6 pb-0 pt-6">
+                        <CardTitle className="text-[18px] font-bold tracking-tight text-slate-900">Évolution des coûts</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="h-[300px]">
-                            <Bar
-                                data={barData}
+                    <CardContent className="px-4 pb-6 pt-2">
+                        <div className="h-[280px]">
+                            <Line
+                                data={lineData}
                                 options={{
                                     responsive: true,
                                     maintainAspectRatio: false,
-                                    plugins: { legend: { display: false } },
+                                    plugins: {
+                                        legend: { display: false },
+                                        tooltip: {
+                                            backgroundColor: 'white',
+                                            titleColor: '#0f172a',
+                                            bodyColor: '#3b82f6',
+                                            borderColor: '#e2e8f0',
+                                            borderWidth: 1,
+                                            padding: 12,
+                                            displayColors: false,
+                                        },
+                                    },
                                     scales: {
-                                        y: { grid: { color: 'rgba(216, 226, 236, 0.2)' }, ticks: { font: { size: 10, family: 'Inter' }, color: 'hsl(var(--muted-foreground))' } },
-                                        x: { grid: { display: false }, ticks: { font: { size: 10, family: 'Inter' }, color: 'hsl(var(--muted-foreground))' } }
-                                    }
+                                        y: {
+                                            beginAtZero: true,
+                                            grid: { color: '#e5e7eb' },
+                                            ticks: {
+                                                color: '#94a3b8',
+                                                font: { size: 10, family: 'Inter' },
+                                            },
+                                        },
+                                        x: {
+                                            grid: { color: '#e5e7eb' },
+                                            ticks: {
+                                                color: '#94a3b8',
+                                                font: { size: 10, family: 'Inter' },
+                                            },
+                                        },
+                                    },
                                 }}
                             />
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="lg:col-span-4 shadow-none border-border/50 bg-card/60 backdrop-blur-sm flex flex-col">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-bold text-center">Engagement Global</CardTitle>
+                <Card className="overflow-hidden border-0 bg-white shadow-[0_14px_40px_-22px_rgba(15,23,42,0.30)] xl:col-span-4">
+                    <CardHeader className="px-6 pb-0 pt-6">
+                        <CardTitle className="text-[18px] font-bold tracking-tight text-slate-900">Distribution matériaux</CardTitle>
                     </CardHeader>
-                    <CardContent className="flex-1 flex flex-col justify-center gap-8 pb-10">
-                        {projects.length > 0 ? (
-                            <>
-                                <div className="relative w-44 h-44 mx-auto group">
-                                    <Doughnut
-                                        data={{
-                                            datasets: [{
-                                                data: [stats.total_budget, Math.max(0, stats.total_budget * 0.5)],
-                                                backgroundColor: ['hsl(var(--primary))', 'hsl(var(--muted))'],
-                                                borderWidth: 0,
-                                            }]
-                                        }}
-                                        options={{
-                                            plugins: { legend: { display: false } },
-                                            cutout: '82%'
-                                        }}
-                                    />
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="text-3xl font-bold tracking-tighter">{projects.length}</span>
-                                        <span className="text-[10px] font-bold uppercase text-muted-foreground">Chantier(s)</span>
-                                    </div>
-                                </div>
-                                <div className="space-y-3 px-2">
-                                    <div className="flex justify-between items-center text-sm font-medium">
-                                        <span className="flex items-center gap-2 text-muted-foreground"><div className="w-2 h-2 rounded-full bg-primary"></div>Budget Total</span>
-                                        <span className="font-bold underline decoration-primary/20">{(stats.total_budget / 1000).toFixed(1)}k €</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-sm font-medium">
-                                        <span className="flex items-center gap-2 text-muted-foreground"><div className="w-2 h-2 rounded-full bg-slate-200"></div>En cours</span>
-                                        <span className="font-bold underline decoration-slate-200">{stats.active_projects}</span>
-                                    </div>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center gap-4 py-8">
-                                <p className="text-center text-muted-foreground">Aucun chantier créé</p>
-                                <Button variant="outline" size="sm">Créer le premier chantier</Button>
-                            </div>
-                        )}
+                    <CardContent className="flex flex-col items-center justify-center gap-4 px-6 pb-6 pt-4">
+                        <div className="relative h-52 w-52">
+                            <Doughnut
+                                data={{
+                                    labels: ['Ciment', 'Acier', 'Bois', 'Briques', 'Autres'],
+                                    datasets: [{
+                                        data: [29, 22, 15, 20, 14],
+                                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                                        borderWidth: 0,
+                                    }],
+                                }}
+                                options={{
+                                    plugins: { legend: { display: false } },
+                                    cutout: '62%',
+                                }}
+                            />
+                        </div>
+                            <div className="grid w-full grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            <div className="flex items-center justify-between gap-2 text-blue-500"><span>Ciment</span><span>29%</span></div>
+                            <div className="flex items-center justify-between gap-2 text-emerald-500"><span>Acier</span><span>22%</span></div>
+                            <div className="flex items-center justify-between gap-2 text-orange-500"><span>Bois</span><span>15%</span></div>
+                            <div className="flex items-center justify-between gap-2 text-red-500"><span>Briques</span><span>20%</span></div>
+                            <div className="flex items-center justify-between gap-2 text-violet-500"><span>Autres</span><span>14%</span></div>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
 
-            <Card className="shadow-none border-border/50 bg-card/60 backdrop-blur-sm overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between py-6">
-                    <div>
-                        <CardTitle className="text-lg font-bold">Chantiers en cours</CardTitle>
-                        <CardDescription className="text-xs">Dernière mise à jour des données de terrain</CardDescription>
-                    </div>
+            <Card className="overflow-hidden border-0 bg-white shadow-[0_14px_40px_-22px_rgba(15,23,42,0.30)]">
+                <CardHeader className="px-6 pb-0 pt-6">
+                    <CardTitle className="text-[18px] font-bold tracking-tight text-slate-900">Activités récentes</CardTitle>
                 </CardHeader>
-                <div className="overflow-x-auto border-t">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-slate-50/50 dark:bg-slate-800/30">
-                                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b">Chantier</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b">Superviseur</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b">Status</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b">Progression</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-muted-foreground uppercase tracking-widest border-b text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/50">
-                            {projects.map((p: any) => (
-                                <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
-                                    <td className="px-6 py-5">
-                                        <div className="font-bold text-[14px] text-foreground tracking-tight">{p.name}</div>
-                                        <div className="text-[11px] text-muted-foreground italic h-4 truncate overflow-hidden">{p.description}</div>
-                                    </td>
-                                    <td className="px-6 py-5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                                                {p.engineer?.name.split(' ').map((n: any) => n[0]).join('')}
-                                            </div>
-                                            <span className="text-sm font-medium">{p.engineer?.name || 'Inconnu'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5">
-                                        <div className="inline-flex items-center gap-2">
-                                            {p.status === 'en_cours' && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>}
-                                            {p.status === 'termine' && <div className="w-2 h-2 rounded-full bg-green-500"></div>}
-                                            {p.status === 'initialisation' && <div className="w-2 h-2 rounded-full bg-slate-400"></div>}
-                                            {p.status === 'planifie' && <div className="w-2 h-2 rounded-full bg-indigo-500"></div>}
-                                            <span className="text-xs font-bold text-muted-foreground uppercase">{p.status.replace('_', ' ')}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5">
-                                        <div className="flex flex-col gap-1.5 w-32">
-                                            <div className="flex justify-between text-[10px] font-bold uppercase py-0.5">
-                                                <span>Flux</span>
-                                                <span className="text-primary">{p.status === 'termine' ? '100' : '35'}%</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                                                <div className={`h-full bg-primary transition-all duration-1000`} style={{ width: p.status === 'termine' ? '100%' : '35%' }}></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 text-right">
-                                        <Button size="icon" variant="ghost" className="rounded-xl h-8 w-8"><ChevronRight className="h-4 w-4" /></Button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <CardContent className="px-6 pb-6 pt-4">
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                        <div className="flex items-start gap-3">
+                            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                                <CheckCircle2 className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-slate-900">Livraison de 50 sacs de ciment</div>
+                                <div className="text-xs text-slate-500">Il y a 2h</div>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
             </Card>
         </div>
     );
@@ -448,6 +358,7 @@ export const EngineerDashboard = ({
     const refreshAttendances = React.useCallback(async () => {
         if (!selectedProjectId || !selectedDate) {
             setAttendances([]);
+
             return;
         }
 
@@ -466,6 +377,7 @@ export const EngineerDashboard = ({
 
             if (!response.ok) {
                 alert('Erreur lors du chargement des presences');
+
                 return;
             }
 
@@ -496,6 +408,7 @@ export const EngineerDashboard = ({
             if (!response.ok) {
                 const error = await response.json();
                 alert(error.error || 'Erreur lors de la mise a jour du statut');
+
                 return;
             }
 
@@ -523,11 +436,13 @@ export const EngineerDashboard = ({
     const submitWorkersAssignment = async () => {
         if (!selectedProjectId) {
             alert('Selectionnez un projet');
+
             return;
         }
 
         if (selectedWorkers.length === 0) {
             alert('Selectionnez au moins un ouvrier');
+
             return;
         }
 
@@ -546,6 +461,7 @@ export const EngineerDashboard = ({
             if (!response.ok) {
                 const error = await response.json();
                 alert(error.error || 'Erreur lors de l\'affectation');
+
                 return;
             }
 
@@ -561,11 +477,13 @@ export const EngineerDashboard = ({
     const submitPresenceInitialization = async () => {
         if (!selectedProjectId) {
             alert('Selectionnez un projet');
+
             return;
         }
 
         if (selectedShifts.length === 0) {
             alert('Selectionnez au moins un shift');
+
             return;
         }
 
@@ -589,6 +507,7 @@ export const EngineerDashboard = ({
 
             if (!response.ok) {
                 alert(payload.error || payload.message || 'Erreur lors de l\'initialisation');
+
                 return;
             }
 

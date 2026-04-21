@@ -15,6 +15,10 @@ import {
     BarChart3,
     Clock
 } from 'lucide-react';
+import { index as activityLogsIndex } from '@/actions/App/Http/Controllers/ActivityLogController';
+import { index as projectsIndex } from '@/actions/App/Http/Controllers/Api/ProjectController';
+import { index as reportsIndex } from '@/actions/App/Http/Controllers/ReportController';
+import { index as usersIndex } from '@/actions/App/Http/Controllers/UserController';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -28,13 +32,9 @@ import {
     SidebarMenuButton,
     SidebarRail,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
-import { index as projectsIndex } from '@/actions/App/Http/Controllers/Api/ProjectController';
-import { index as usersIndex } from '@/actions/App/Http/Controllers/UserController';
-import { index as activityLogsIndex } from '@/actions/App/Http/Controllers/ActivityLogController';
-import { index as reportsIndex } from '@/actions/App/Http/Controllers/ReportController';
-import type { NavItem } from '@/types';
 import { UserRole } from '@/Enums/UserRole';
+import { dashboard } from '@/routes';
+import type { NavItem } from '@/types';
 
 const roleNavItems: Record<string, NavItem[]> = {
     [UserRole.Manager.value]: [
@@ -75,10 +75,10 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
 
     return (
         <Sidebar collapsible="icon" className={className} {...props}>
-            <SidebarHeader>
+            <SidebarHeader className="border-b border-white/10 px-5 py-5">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton size="lg" asChild className="h-auto rounded-none px-0 py-0 hover:bg-transparent">
                             <Link href={dashboard()} prefetch>
                                 <AppLogo />
                             </Link>
@@ -87,12 +87,12 @@ export function AppSidebar({ className, ...props }: React.ComponentProps<typeof 
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="px-3 py-4">
                 <NavMain items={mainNavItems} label="Navigation" />
                 <NavMain items={systemNavItems} label="Système" />
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="border-t border-white/10 px-3 py-4">
                 <NavUser />
             </SidebarFooter>
             <SidebarRail />

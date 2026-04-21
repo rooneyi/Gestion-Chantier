@@ -10,4 +10,16 @@ class Material extends Model
 {
     /** @use HasFactory<MaterialFactory> */
     use HasFactory;
+
+    protected $fillable = [
+        'name',
+        'description',
+        'quantity_in_stock',
+        'unit',
+        'category',
+    ];
+
+    protected $casts = [
+        'quantity_in_stock' => 'decimal:2',
+    ];
 }

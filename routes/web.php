@@ -3,14 +3,13 @@
 use App\Http\Controllers\AbsenceNotificationController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\Api\FilterController;
+use App\Http\Controllers\Api\MaterialController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceInitializationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
-use App\Models\Project;
-use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -29,6 +28,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
     Route::put('projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
     Route::delete('projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
+
+    // Material routes
+    Route::get('materials', [MaterialController::class, 'index'])->name('materials.index');
 
     // Activity Log routes
     Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');

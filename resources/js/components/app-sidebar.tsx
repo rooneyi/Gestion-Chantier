@@ -40,6 +40,7 @@ const roleNavItems: Record<string, NavItem[]> = {
     [UserRole.Manager.value]: [
         { title: 'Vue d\'ensemble', href: dashboard(), icon: LayoutGrid },
         { title: 'Chantiers', href: projectsIndex(), icon: TrendingUp },
+        { title: 'Matériaux', href: '/materials', icon: Package },
         { title: 'Ressources Humaines', href: usersIndex(), icon: Users },
         { title: 'Présence', href: '/attendance', icon: Clock },
         { title: 'Rapports', href: reportsIndex(), icon: BarChart3 },
@@ -57,7 +58,7 @@ const roleNavItems: Record<string, NavItem[]> = {
         { title: 'Historique', href: '#', icon: History },
     ],
     [UserRole.Magasinier.value]: [
-        { title: 'Stock Matériaux', href: dashboard(), icon: Package },
+        { title: 'Stock Matériaux', href: '/materials', icon: Package },
         { title: 'Bons de Sortie', href: '#', icon: FileText },
         { title: 'Inventaire', href: '#', icon: ClipboardCheck },
     ],

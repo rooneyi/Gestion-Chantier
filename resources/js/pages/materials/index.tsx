@@ -2,7 +2,7 @@ import { Head } from '@inertiajs/react';
 import { AlertTriangle, Package, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import React from 'react';
 
-import { store } from '@/actions/App/Http/Controllers/Api/MaterialController';
+import { destroy, store, update } from '@/actions/App/Http/Controllers/Api/MaterialController';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -72,6 +72,7 @@ export default function MaterialsIndex({ materials }: { materials: MaterialItem[
     const [searchTerm, setSearchTerm] = React.useState('');
     const [openDialog, setOpenDialog] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [editingMaterial, setEditingMaterial] = React.useState<MaterialItem | null>(null);
     const [formData, setFormData] = React.useState({
         name: '',
         description: '',
@@ -121,8 +122,11 @@ export default function MaterialsIndex({ materials }: { materials: MaterialItem[
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(store.url(), {
-                method: 'POST',
+            const url = editingMaterial ? update.url({ material: editingMaterial.id }) : store.url();
+            const method = editingMaterial ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
@@ -132,18 +136,54 @@ export default function MaterialsIndex({ materials }: { materials: MaterialItem[
 
             if (!response.ok) {
                 const error = await response.json();
-                alert('Erreur : ' + (error.message || 'Impossible de créer le matériau'));
+                alert('Erreur : ' + (error.message || 'Impossible d\'enregistrer le matériau'));
                 return;
             }
 
             setFormData({ name: '', description: '', quantity_in_stock: '', unit: 'sacs', category: '' });
+            setEditingMaterial(null);
             setOpenDialog(false);
             window.location.reload();
         } catch (error) {
             console.error('Error:', error);
-            alert('Erreur lors de la création du matériau');
+            alert('Erreur lors de l\'enregistrement du matériau');
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleEdit = (material: MaterialItem) => {
+        setEditingMaterial(material);
+        setFormData({
+            name: material.name,
+            description: material.description || '',
+            quantity_in_stock: material.quantity_in_stock.toString(),
+            unit: material.unit,
+            category: material.category || '',
+        });
+        setOpenDialog(true);
+    };
+
+    const handleDelete = async (id: number) => {
+        if (!window.confirm('Supprimer ce matériau ?')) return;
+
+        try {
+            const response = await fetch(destroy.url({ material: id }), {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+            });
+
+            if (!response.ok) {
+                alert('Erreur lors de la suppression');
+                return;
+            }
+
+            window.location.reload();
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Erreur lors de la suppression');
         }
     };
 
@@ -167,7 +207,7 @@ export default function MaterialsIndex({ materials }: { materials: MaterialItem[
                         </DialogTrigger>
 
                         <DialogContent>
-                            <DialogTitle>Ajouter un matériau</DialogTitle>
+                            <DialogTitle>{editingMaterial ? 'Modifier le matériau' : 'Ajouter un matériau'}</DialogTitle>
 
                             <form className="mt-4 space-y-4" onSubmit={handleSubmitMaterial}>
                                 <div>
@@ -240,9 +280,9 @@ export default function MaterialsIndex({ materials }: { materials: MaterialItem[
 
                                 <div className="flex justify-end gap-2 pt-2">
                                     <DialogClose asChild>
-                                        <Button type="button" variant="outline">Annuler</Button>
+                                        <Button type="button" variant="outline" onClick={() => { setEditingMaterial(null); setFormData({ name: '', description: '', quantity_in_stock: '', unit: 'sacs', category: '' }); }}>Annuler</Button>
                                     </DialogClose>
-                                    <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Création...' : 'Créer'}</Button>
+                                    <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Enregistrement...' : (editingMaterial ? 'Modifier' : 'Créer')}</Button>
                                 </div>
                             </form>
                         </DialogContent>

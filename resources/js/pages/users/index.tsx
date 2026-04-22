@@ -1,8 +1,8 @@
 import { Head, router } from '@inertiajs/react';
-import { Search, Trash2, UserPlus } from 'lucide-react';
+import { Pencil, Search, Trash2, UserPlus } from 'lucide-react';
 import React from 'react';
 
-import { destroy, index, store } from '@/actions/App/Http/Controllers/UserController';
+import { destroy, index, store, update } from '@/actions/App/Http/Controllers/UserController';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -14,13 +14,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { UserRole } from '@/Enums/UserRole';
+import { UserRole, UserRoleValue } from '@/Enums/UserRole';
 
 type UserItem = {
   id: number;
   name: string;
   email: string;
-  role: string;
+  role: UserRoleValue;
   daily_rate: string | number | null;
   skills: string | null;
   status: 'Actif' | 'Inactif';
@@ -88,7 +88,15 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
   const [open, setOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
-  const [formData, setFormData] = React.useState({
+  const [editingUser, setEditingUser] = React.useState<UserItem | null>(null);
+  const [formData, setFormData] = React.useState<{
+    name: string;
+    email: string;
+    password: string;
+    role: UserRoleValue;
+    daily_rate: string;
+    skills: string;
+  }>({
     name: '',
     email: '',
     password: '',
@@ -154,8 +162,11 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch(store.url(), {
-        method: 'POST',
+      const url = editingUser ? update.url({ user: editingUser.id }) : store.url();
+      const method = editingUser ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
@@ -166,20 +177,34 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
       if (!response.ok) {
         const error = await response.json();
         console.error('Error:', error);
-        alert('Erreur lors de la création de l\'utilisateur');
+        alert('Erreur lors de l\'enregistrement');
 
         return;
       }
 
       setFormData({ name: '', email: '', password: '', role: UserRole.Worker.value, daily_rate: '', skills: '' });
+      setEditingUser(null);
       setOpen(false);
       router.visit(index.url());
     } catch (error) {
       console.error('Error:', error);
-      alert('Erreur lors de la création de l\'utilisateur');
+      alert('Erreur lors de l\'enregistrement');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEdit = (user: UserItem) => {
+    setEditingUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: '', // Leave empty for updates
+      role: user.role,
+      daily_rate: user.daily_rate?.toString() || '',
+      skills: user.skills || '',
+    });
+    setOpen(true);
   };
 
   const handleDelete = async (userId: number) => {
@@ -229,7 +254,7 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
               </DialogTrigger>
 
               <DialogContent>
-                <DialogTitle>Ajouter un membre de l'équipe</DialogTitle>
+                <DialogTitle>{editingUser ? 'Modifier l\'utilisateur' : 'Ajouter un membre de l\'équipe'}</DialogTitle>
 
                 <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
                   <div>
@@ -258,7 +283,7 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
                   </div>
 
                   <div>
-                    <Label htmlFor="password">Mot de passe *</Label>
+                    <Label htmlFor="password">Mot de passe {editingUser ? '(Laisser vide pour ne pas changer)' : '*'}</Label>
                     <Input
                       id="password"
                       name="password"
@@ -266,7 +291,7 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="Minimum 8 caractères"
-                      required
+                      required={!editingUser}
                     />
                   </div>
 
@@ -314,9 +339,9 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
 
                   <div className="flex justify-end gap-2 pt-2">
                     <DialogClose asChild>
-                      <Button type="button" variant="outline">Annuler</Button>
+                      <Button type="button" variant="outline" onClick={() => { setEditingUser(null); setFormData({ name: '', email: '', password: '', role: UserRole.Worker.value, daily_rate: '', skills: '' }); }}>Annuler</Button>
                     </DialogClose>
-                    <Button type="submit" disabled={isLoading}>{isLoading ? 'Création...' : 'Créer'}</Button>
+                    <Button type="submit" disabled={isLoading}>{isLoading ? 'Enregistrement...' : (editingUser ? 'Modifier' : 'Créer')}</Button>
                   </div>
                 </form>
               </DialogContent>
@@ -411,14 +436,24 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(row.id)}
-                          className="h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4 text-rose-600" />
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(row)}
+                            className="h-8 w-8 text-blue-600"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(row.id)}
+                            className="h-8 w-8 text-rose-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))

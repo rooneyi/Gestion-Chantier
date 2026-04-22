@@ -20,6 +20,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // User routes
     Route::get('users', [UserController::class, 'index'])->name('users.index');
     Route::post('users', [UserController::class, 'store'])->name('users.store');
+    Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
     // Project routes
@@ -32,6 +33,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Material routes
     Route::get('materials', [MaterialController::class, 'index'])->name('materials.index');
     Route::post('materials', [MaterialController::class, 'store'])->name('materials.store');
+    Route::put('materials/{material}', [MaterialController::class, 'update'])->name('materials.update');
+    Route::delete('materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
 
     // Activity Log routes
     Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');

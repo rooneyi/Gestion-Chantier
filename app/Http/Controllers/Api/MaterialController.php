@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Material;
+use App\Models\ResourceRequest;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -58,8 +59,29 @@ class MaterialController extends Controller
             ]);
         }
 
+        $projectAllocations = ResourceRequest::where('status', 'livre')
+            ->with(['project:id,name', 'material:id,name,unit'])
+            ->get()
+            ->groupBy('project_id')
+            ->map(function ($items) {
+                $project = $items->first()->project;
+
+                return [
+                    'project_id' => $project->id,
+                    'project_name' => $project->name,
+                    'materials' => $items->groupBy('material_id')->map(function ($group) {
+                        return [
+                            'name' => $group->first()->material->name,
+                            'quantity' => $group->sum('quantity_requested'),
+                            'unit' => $group->first()->material->unit,
+                        ];
+                    })->values(),
+                ];
+            })->values();
+
         return Inertia::render('materials/index', [
             'materials' => $materials,
+            'projectAllocations' => $projectAllocations,
         ]);
     }
 

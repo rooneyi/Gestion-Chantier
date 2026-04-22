@@ -25,6 +25,16 @@ type MaterialItem = {
     updated_at: string;
 };
 
+type ProjectAllocation = {
+    project_id: number;
+    project_name: string;
+    materials: {
+        name: string;
+        quantity: number;
+        unit: string;
+    }[];
+};
+
 const UNIT_PRICE_BY_NAME: Record<string, number> = {
     ciment: 15,
     acier: 800,
@@ -68,7 +78,13 @@ function isLowStock(quantity: number, unit: string): boolean {
     return quantity < threshold;
 }
 
-export default function MaterialsIndex({ materials }: { materials: MaterialItem[] }) {
+export default function MaterialsIndex({ 
+    materials, 
+    projectAllocations = [] 
+}: { 
+    materials: MaterialItem[]; 
+    projectAllocations?: ProjectAllocation[];
+}) {
     const [searchTerm, setSearchTerm] = React.useState('');
     const [openDialog, setOpenDialog] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -364,6 +380,39 @@ export default function MaterialsIndex({ materials }: { materials: MaterialItem[
                          </Card>
                      ))}
                  </div>
+
+                {projectAllocations.length > 0 && (
+                    <div className="space-y-4 pt-6">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-black text-slate-900">Affectations par Projet</h2>
+                            <div className="h-px flex-1 bg-slate-200 mx-6 opacity-50" />
+                        </div>
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {projectAllocations.map((allocation) => (
+                                <Card key={allocation.project_id} className="rounded-[32px] border border-blue-100 bg-blue-50/30 p-2 shadow-xl shadow-blue-500/5 transition-all hover:shadow-2xl hover:shadow-blue-500/10">
+                                    <CardHeader className="pb-4 p-6 pt-6">
+                                        <CardTitle className="text-xl font-black text-blue-900 flex items-center gap-3">
+                                            <div className="h-3 w-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50" />
+                                            {allocation.project_name}
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="px-6 pb-6">
+                                        <div className="space-y-3">
+                                            {allocation.materials.map((m, idx) => (
+                                                <div key={idx} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-blue-100/50 shadow-sm transition-transform hover:scale-[1.02]">
+                                                    <span className="font-bold text-slate-700">{m.name}</span>
+                                                    <span className="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tight">
+                                                        {m.quantity} {m.unit}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {filteredMaterials.length === 0 && (
                     <Card className="rounded-2xl border border-slate-200 bg-slate-50/60 py-10 text-center shadow-sm">

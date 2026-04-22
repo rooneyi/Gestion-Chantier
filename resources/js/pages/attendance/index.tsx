@@ -1,9 +1,23 @@
-import { Head } from '@inertiajs/react';
-import { Calendar, Clock, MapPin, User, Users, CheckCircle, XCircle, Plus, Settings, Loader } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { 
+  Calendar, Clock, MapPin, User, Users, CheckCircle, XCircle, 
+  Plus, Settings, Loader, Filter, Search, ArrowRight, UserCheck, 
+  Clock3, AlertCircle, ChevronRight
+} from 'lucide-react';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
 
 export default function AttendanceIndex({
   attendances: initialAttendances,
@@ -23,36 +37,29 @@ export default function AttendanceIndex({
   const [showInitialize, setShowInitialize] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const defaultStatus = statuses && statuses.length > 0 ? statuses[0].value : 'present';
-  const defaultShift = shifts && shifts.length > 0 ? shifts[0].value : 'morning';
+  
+  const defaultStatus = statuses?.length > 0 ? statuses[0].value : 'present';
+  const defaultShift = shifts?.length > 0 ? shifts[0].value : 'morning';
+  
   const [checkInData, setCheckInData] = useState({ user_id: '', project_id: '', shift: defaultShift, status: defaultStatus });
   const [selectedProjectForAssign, setSelectedProjectForAssign] = useState('');
   const [selectedWorkersForAssign, setSelectedWorkersForAssign] = useState<number[]>([]);
   const [selectedShiftsForInit, setSelectedShiftsForInit] = useState<string[]>(['morning', 'evening']);
 
-  // Refresh data from server
   const refreshAttendances = async () => {
     setRefreshing(true);
     try {
-      // Add small delay to ensure database writes are committed
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       const params = new URLSearchParams();
       if (displayDate) params.append('date', displayDate);
       if (displayProject) params.append('project_id', displayProject);
       
       const response = await fetch(`/api/attendance/list?${params.toString()}`, {
-        headers: {
-          'Accept': 'application/json',
-        },
+        headers: { 'Accept': 'application/json' },
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Refreshed attendances:', data.attendances.length, data.attendances);
         setAttendances(data.attendances);
-      } else {
-        console.error('Failed to fetch attendances:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error refreshing attendances:', error);
@@ -62,10 +69,10 @@ export default function AttendanceIndex({
   };
 
   const handleFiltersChange = () => {
-    const params = new URLSearchParams();
-    if (displayDate) params.append('date', displayDate);
-    if (displayProject) params.append('project_id', displayProject);
-    window.location.href = `/attendance?${params.toString()}`;
+    router.get('/attendance', {
+        date: displayDate,
+        project_id: displayProject
+    }, { preserveState: true, preserveScroll: true });
   };
 
   const handleCheckIn = async (e: React.FormEvent) => {
@@ -88,15 +95,11 @@ export default function AttendanceIndex({
         return;
       }
 
-      const result = await response.json();
-      // Add new attendance to the list immediately
-      setAttendances([result.attendance, ...attendances]);
-      alert('Arrivée enregistrée avec succès');
+      await refreshAttendances();
       setShowCheckIn(false);
-      setCheckInData({ user_id: '', project_id: '', status: defaultStatus });
+      setCheckInData({ user_id: '', project_id: '', shift: defaultShift, status: defaultStatus });
     } catch (error) {
       console.error('Error:', error);
-      alert('Erreur lors de l\'enregistrement');
     } finally {
       setLoading(false);
     }
@@ -114,21 +117,11 @@ export default function AttendanceIndex({
         },
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        alert(error.message || 'Erreur lors du départ');
-        return;
+      if (response.ok) {
+        await refreshAttendances();
       }
-
-      const updatedAttendance = await response.json();
-      // Update attendance in the list
-      setAttendances(
-        attendances.map(a => a.id === attendanceId ? updatedAttendance.attendance : a)
-      );
-      alert('Départ enregistré');
     } catch (error) {
       console.error('Error:', error);
-      alert('Erreur lors du départ');
     }
   };
 
@@ -143,579 +136,381 @@ export default function AttendanceIndex({
         body: JSON.stringify({ status: newStatus }),
       });
 
-      if (!response.ok) {
-        alert('Erreur lors de la mise à jour du statut');
-        return;
+      if (response.ok) {
+        setAttendances(prev => prev.map(a => a.id === attendanceId ? { ...a, status: newStatus } : a));
       }
-
-      const result = await response.json();
-      
-      // Update attendance in the list with proper object cloning
-      setAttendances(prevAttendances =>
-        prevAttendances.map(a => 
-          a.id === attendanceId 
-            ? { ...a, ...result.attendance } 
-            : a
-        )
-      );
     } catch (error) {
       console.error('Error:', error);
-      alert('Erreur lors de la mise à jour du statut');
     }
-  };
-
-  const handleInitializePresences = async () => {
-    if (!displayProject) {
-      alert('Veuillez sélectionner un projet');
-      return;
-    }
-
-    if (selectedShiftsForInit.length === 0) {
-      alert('Veuillez sélectionner au moins un shift');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch('/api/attendance/initialize', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-        },
-        body: JSON.stringify({ date: displayDate, project_id: displayProject, shifts: selectedShiftsForInit }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        alert(error.message || 'Erreur lors de l\'initialisation');
-        return;
-      }
-
-      const result = await response.json();
-      alert(`${result.created} présences initialisées (${result.shifts} shifts)`);
-      setShowInitialize(false);
-      // Refresh the list AFTER closing modal
-      await refreshAttendances();
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Erreur lors de l\'initialisation');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAssignWorkers = async () => {
-    if (!selectedProjectForAssign) {
-      alert('Veuillez sélectionner un projet');
-      return;
-    }
-
-    if (selectedWorkersForAssign.length === 0) {
-      alert('Veuillez sélectionner au moins un ouvrier');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/projects/${selectedProjectForAssign}/workers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-        },
-        body: JSON.stringify({ worker_ids: selectedWorkersForAssign }),
-      });
-
-      if (!response.ok) {
-        alert('Erreur lors de l\'assignation des ouvriers');
-        return;
-      }
-
-      alert('Ouvriers assignés avec succès');
-      setShowAssignWorkers(false);
-      setSelectedWorkersForAssign([]);
-      setSelectedProjectForAssign('');
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Erreur lors de l\'assignation');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleWorkerSelection = (workerId: number) => {
-    setSelectedWorkersForAssign((prev) =>
-      prev.includes(workerId) ? prev.filter((id) => id !== workerId) : [...prev, workerId]
-    );
   };
 
   const formatTime = (time: string | null) => {
     if (!time) return '-';
     try {
       return new Date(time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return time;
-    }
-  };
-
-  const calculateDuration = (checkIn: string | null, checkOut: string | null) => {
-    if (!checkIn || !checkOut) return '-';
-    try {
-      const start = new Date(checkIn);
-      const end = new Date(checkOut);
-      const diffMs = end.getTime() - start.getTime();
-      const hours = Math.floor(diffMs / (1000 * 60 * 60));
-      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      return `${hours}h ${minutes}m`;
-    } catch {
-      return '-';
-    }
+    } catch { return '-'; }
   };
 
   return (
     <>
       <Head title="Gestion de la Présence" />
 
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="relative space-y-8 pb-10">
+        {/* Abstract Background Elements */}
+        <div className="pointer-events-none absolute inset-x-0 -top-40 -z-10 h-[500px] bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.08),transparent_40%),radial-gradient(circle_at_top_left,rgba(16,185,129,0.05),transparent_35%)]" />
+
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Gestion de la Présence</h1>
-            <p className="text-sm text-muted-foreground">Suivi des arrivées et départs</p>
+            <h1 className="text-[42px] font-bold tracking-tight text-slate-900">Présences & Pointage</h1>
+            <p className="text-lg text-slate-500">Suivi en temps réel des effectifs sur les chantiers</p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => setShowAssignWorkers(true)} variant="outline" className="rounded-lg gap-2">
-              <Settings className="h-4 w-4" />
-              Assigner Ouvriers
+          
+          <div className="flex flex-wrap gap-3">
+            <Button 
+                onClick={() => setShowAssignWorkers(true)} 
+                variant="outline" 
+                className="h-11 rounded-xl border-slate-200 bg-white px-5 font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50"
+            >
+              <Users className="mr-2 h-4 w-4 text-blue-500" />
+              Assignations
             </Button>
-            <Button onClick={() => setShowInitialize(true)} variant="outline" className="rounded-lg gap-2">
-              <Plus className="h-4 w-4" />
-              Initialiser
+            <Button 
+                onClick={() => setShowInitialize(true)} 
+                variant="outline" 
+                className="h-11 rounded-xl border-slate-200 bg-white px-5 font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50"
+            >
+              <Calendar className="mr-2 h-4 w-4 text-emerald-500" />
+              Initialiser Journée
             </Button>
-            <Button onClick={() => setShowCheckIn(true)} className="rounded-lg gap-2">
-              <Clock className="h-4 w-4" />
-              Nouvelle Présence
+            <Button 
+                onClick={() => setShowCheckIn(true)} 
+                className="h-11 rounded-xl bg-blue-600 px-6 font-bold text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 hover:scale-[1.02]"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Nouveau Pointage
             </Button>
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard icon={Users} label="Total Ouvriers" value={statistics.total_workers} />
-          <StatCard icon={CheckCircle} label="Présents" value={statistics.present} color="text-green-600" />
-          <StatCard icon={Clock} label="Partis" value={statistics.checked_out} color="text-blue-600" />
-          <StatCard icon={XCircle} label="Absents" value={statistics.absent} color="text-red-600" />
+        {/* Statistics Widgets */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <PremiumStatCard 
+            title="Effectif Total" 
+            value={statistics.total_workers} 
+            icon={Users} 
+            color="blue"
+            trend="Sur le projet actif"
+          />
+          <PremiumStatCard 
+            title="Présents" 
+            value={statistics.present} 
+            icon={UserCheck} 
+            color="emerald"
+            trend="Actuellement sur site"
+          />
+          <PremiumStatCard 
+            title="Retards / Sortis" 
+            value={statistics.checked_out} 
+            icon={Clock3} 
+            color="amber"
+            trend="Pointages complétés"
+          />
+          <PremiumStatCard 
+            title="Absences" 
+            value={statistics.absent} 
+            icon={AlertCircle} 
+            color="rose"
+            trend="À justifier"
+          />
         </div>
 
-        {/* Filters */}
-        <Card className="shadow-none border-border/50 bg-card/60 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-base">Filtres</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Date</label>
-                <input
-                  type="date"
-                  value={displayDate}
-                  onChange={(e) => setDisplayDate(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold">Projet</label>
-                <select
-                  value={displayProject}
-                  onChange={(e) => setDisplayProject(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                >
-                  <option value="">-- Tous les projets --</option>
-                  {projects.map((p: any) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-end">
-                <Button onClick={handleFiltersChange} className="w-full rounded-lg">
-                  Appliquer
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Attendances List */}
-        <Card className="shadow-none border-border/50 bg-card/60 backdrop-blur-sm">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Présences du {new Date(displayDate).toLocaleDateString('fr-FR')}</CardTitle>
-                <CardDescription>{attendances.length} enregistrement(s)</CardDescription>
-              </div>
-              {refreshing && <Loader className="h-5 w-5 animate-spin text-gray-500" />}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {attendances.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">Aucune présence enregistrée</div>
-              ) : (
-                attendances.map((attendance: any) => {
-                  const currentStatus = attendance.status;
-                  return (
-                    <div key={attendance.id} className="p-4 rounded-lg border border-border/50 bg-muted/30">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3 flex-1">
-                          <User className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-semibold">{attendance.user?.name}</p>
-                            <div className="flex items-center gap-2">
-                              <p className="text-xs text-muted-foreground">{attendance.project?.name}</p>
-                              {attendance.shift && (
-                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                  {shifts?.find((s: any) => s.value === attendance.shift)?.icon}{' '}
-                                  {shifts?.find((s: any) => s.value === attendance.shift)?.label}
-                                </span>
-                              )}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            {/* Filters Sidebar */}
+            <div className="lg:col-span-3">
+                <Card className="sticky top-6 border-0 bg-white shadow-[0_8px_30px_-12px_rgba(0,0,0,0.1)]">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                            <Filter className="h-4 w-4 text-blue-500" />
+                            Filtres
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase text-slate-400 tracking-wider">Date de pointage</Label>
+                            <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type="date"
+                                    value={displayDate}
+                                    onChange={(e) => setDisplayDate(e.target.value)}
+                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                />
                             </div>
-                          </div>
                         </div>
-                        {/* Status Badges instead of dropdown */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {statuses?.map((status: any) => (
-                            <button
-                              key={status.value}
-                              onClick={() => handleStatusChange(attendance.id, status.value)}
-                              className={`px-3 py-1 rounded-full text-sm font-semibold transition-all cursor-pointer ${
-                                currentStatus === status.value
-                                  ? `${status.color} ring-2 ring-offset-1 ring-current`
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase text-slate-400 tracking-wider">Site de construction</Label>
+                            <select
+                                value={displayProject}
+                                onChange={(e) => setDisplayProject(e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none"
                             >
-                              {status.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <span className="text-muted-foreground">Arrivée: </span>
-                            <span className="font-semibold">{formatTime(attendance.check_in)}</span>
-                          </div>
+                                <option value="">Tous les chantiers</option>
+                                {projects.map((p: any) => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <span className="text-muted-foreground">Départ: </span>
-                            <span className="font-semibold">{formatTime(attendance.check_out)}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <span className="text-muted-foreground">Durée: </span>
-                            <span className="font-semibold">
-                              {calculateDuration(attendance.check_in, attendance.check_out)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {!attendance.check_out && (
-                          <Button
-                            onClick={() => handleCheckOut(attendance.id)}
-                            size="sm"
-                            variant="outline"
-                            className="rounded-lg"
-                          >
-                            Enregistrer Départ
-                          </Button>
-                        )}
-                      </div>
-
-                      {attendance.latitude && attendance.longitude && (
-                        <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3" />
-                          Géolocalisation: {attendance.latitude.toFixed(4)}, {attendance.longitude.toFixed(4)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
+                        <Button 
+                            onClick={handleFiltersChange} 
+                            className="w-full h-11 rounded-xl bg-slate-900 font-bold transition-all hover:bg-slate-800"
+                        >
+                            Filtrer la vue
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Check In Modal */}
-        {showCheckIn && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Nouvelle Présence</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleCheckIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">Ouvrier</label>
-                    <select
-                      value={checkInData.user_id}
-                      onChange={(e) => setCheckInData({ ...checkInData, user_id: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                      required
-                    >
-                      <option value="">-- Sélectionner --</option>
-                      {workers?.map((worker: any) => (
-                        <option key={worker.id} value={worker.id}>
-                          {worker.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+            {/* Attendance Main List */}
+            <div className="lg:col-span-9">
+                <Card className="border-0 bg-white shadow-[0_8px_30px_-12px_rgba(0,0,0,0.1)] overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 pb-6 pt-6 px-8">
+                        <div>
+                            <CardTitle className="text-xl font-bold">Rapport de présence</CardTitle>
+                            <CardDescription>
+                                {attendances.length} personne{attendances.length > 1 ? 's' : ''} répertoriée{attendances.length > 1 ? 's' : ''}
+                            </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            {refreshing && <Loader className="h-5 w-5 animate-spin text-blue-500" />}
+                            <div className="hidden sm:block">
+                                <div className="text-right">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Aujourd'hui</p>
+                                    <p className="text-sm font-bold text-slate-900">{new Date(displayDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="block w-full overflow-x-auto">
+                            <table className="w-full border-collapse items-center bg-transparent">
+                                <thead>
+                                    <tr className="bg-slate-50/50">
+                                        <th className="whitespace-nowrap px-8 py-4 text-left text-xs font-bold uppercase text-slate-400 tracking-wider">Ouvrier / Employé</th>
+                                        <th className="whitespace-nowrap px-6 py-4 text-left text-xs font-bold uppercase text-slate-400 tracking-wider">Shift / Horaire</th>
+                                        <th className="whitespace-nowrap px-6 py-4 text-left text-xs font-bold uppercase text-slate-400 tracking-wider">Pointage</th>
+                                        <th className="whitespace-nowrap px-6 py-4 text-left text-xs font-bold uppercase text-slate-400 tracking-wider">Statut</th>
+                                        <th className="whitespace-nowrap px-8 py-4 text-right text-xs font-bold uppercase text-slate-400 tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {attendances.length > 0 ? attendances.map((attendance: any) => (
+                                        <tr key={attendance.id} className="group transition-colors hover:bg-slate-50/50">
+                                            <td className="whitespace-nowrap px-8 py-5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 font-bold text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                                                        {attendance.user?.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-slate-900">{attendance.user?.name}</p>
+                                                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                                                            <MapPin className="h-3 w-3" />
+                                                            {attendance.project?.name}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="whitespace-nowrap px-6 py-5">
+                                                <Badge variant="outline" className="rounded-lg border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-tight px-3 py-1 text-slate-600">
+                                                    {shifts?.find((s: any) => s.value === attendance.shift)?.label || attendance.shift}
+                                                </Badge>
+                                            </td>
+                                            <td className="whitespace-nowrap px-6 py-5">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                        {formatTime(attendance.check_in)}
+                                                    </div>
+                                                    {attendance.check_out && (
+                                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                                                            <div className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                                                            {formatTime(attendance.check_out)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="whitespace-nowrap px-6 py-5">
+                                                <div className="flex items-center gap-1.5">
+                                                    {statuses?.map((st: any) => (
+                                                        <button
+                                                            key={st.value}
+                                                            onClick={() => handleStatusChange(attendance.id, st.value)}
+                                                            className={cn(
+                                                                "h-2.5 w-2.5 rounded-full transition-all duration-300",
+                                                                attendance.status === st.value 
+                                                                    ? (st.value === 'present' ? 'bg-emerald-500 ring-4 ring-emerald-500/20 scale-125' : 
+                                                                       st.value === 'absent' ? 'bg-rose-500 ring-4 ring-rose-500/20 scale-125' : 
+                                                                       'bg-amber-500 ring-4 ring-amber-500/20 scale-125')
+                                                                    : "bg-slate-200 hover:bg-slate-300"
+                                                            )}
+                                                            title={st.label}
+                                                        />
+                                                    ))}
+                                                    <span className="ml-2 text-xs font-bold text-slate-600 capitalize">
+                                                        {statuses?.find((s: any) => s.value === attendance.status)?.label || attendance.status}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="whitespace-nowrap px-8 py-5 text-right">
+                                                {!attendance.check_out ? (
+                                                    <Button
+                                                        onClick={() => handleCheckOut(attendance.id)}
+                                                        size="sm"
+                                                        className="h-8 rounded-lg bg-orange-100 text-orange-700 hover:bg-orange-200 font-bold text-xs"
+                                                    >
+                                                        Fin de service
+                                                    </Button>
+                                                ) : (
+                                                    <div className="flex items-center justify-end gap-1 text-emerald-600 text-[10px] font-bold uppercase tracking-widest">
+                                                        <CheckCircle className="h-3 w-3" />
+                                                        Complété
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr>
+                                            <td colSpan={5} className="py-20 text-center">
+                                                <div className="flex flex-col items-center justify-center gap-3">
+                                                    <div className="rounded-full bg-slate-50 p-4">
+                                                        <Calendar className="h-10 w-10 text-slate-200" />
+                                                    </div>
+                                                    <p className="text-lg font-bold text-slate-400">Aucun pointage trouvé pour cette date</p>
+                                                    <Button onClick={() => setShowCheckIn(true)} variant="link" className="text-blue-600 font-bold">
+                                                        Effectuer le premier pointage
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">Projet</label>
-                    <select
-                      value={checkInData.project_id}
-                      onChange={(e) => setCheckInData({ ...checkInData, project_id: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                      required
-                    >
-                      <option value="">-- Sélectionner --</option>
-                      {projects.map((p: any) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">Shift</label>
-                    <select
-                      value={checkInData.shift}
-                      onChange={(e) => setCheckInData({ ...checkInData, shift: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                      required
-                    >
-                      {shifts?.map((sh: any) => (
-                        <option key={sh.value} value={sh.value}>
-                          {sh.icon} {sh.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">Statut</label>
-                    {!statuses || statuses.length === 0 ? (
-                      <div className="p-2 bg-yellow-100 text-yellow-800 rounded text-sm">Statuts non chargés</div>
-                    ) : (
-                      <select
-                        value={checkInData.status}
-                        onChange={(e) => setCheckInData({ ...checkInData, status: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                      >
-                        {statuses?.map((s: any) => (
-                          <option key={s.value} value={s.value}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 pt-4">
-                    <Button type="submit" disabled={loading} className="flex-1 rounded-lg">
-                      {loading ? 'Enregistrement...' : 'Enregistrer'}
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => setShowCheckIn(false)} className="flex-1 rounded-lg">
-                      Annuler
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Initialize Presences Modal */}
-        {showInitialize && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Initialiser les Présences</CardTitle>
-                <CardDescription>Créer les enregistrements pour tous les ouvriers du projet</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">Date</label>
-                    <input
-                      type="date"
-                      value={displayDate}
-                      onChange={(e) => setDisplayDate(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">Projet</label>
-                    <select
-                      value={displayProject}
-                      onChange={(e) => setDisplayProject(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                    >
-                      <option value="">-- Sélectionner --</option>
-                      {projects.map((p: any) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">Shifts</label>
-                    <div className="border rounded-lg p-3 space-y-2 bg-muted/20">
-                      {shifts?.map((shift: any) => (
-                        <label key={shift.value} className="flex items-center gap-2 cursor-pointer hover:bg-accent p-2 rounded">
-                          <input
-                            type="checkbox"
-                            checked={selectedShiftsForInit.includes(shift.value)}
-                            onChange={(e) =>
-                              setSelectedShiftsForInit(
-                                e.target.checked
-                                  ? [...selectedShiftsForInit, shift.value]
-                                  : selectedShiftsForInit.filter((s) => s !== shift.value)
-                              )
-                            }
-                            className="rounded"
-                          />
-                          <span>{shift.icon} {shift.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-4">
-                    <Button
-                      onClick={handleInitializePresences}
-                      disabled={loading || !displayProject || selectedShiftsForInit.length === 0}
-                      className="flex-1 rounded-lg"
-                    >
-                      {loading ? 'Initialisation...' : 'Initialiser'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowInitialize(false)}
-                      className="flex-1 rounded-lg"
-                    >
-                      Annuler
-                    </Button>
-                  </div>
+        {/* MODALS SECTION */}
+        <Dialog open={showCheckIn} onOpenChange={setShowCheckIn}>
+            <DialogContent className="max-w-md rounded-3xl border-0 p-0 overflow-hidden">
+                <div className="bg-blue-600 p-8 text-white">
+                    <DialogTitle className="text-2xl font-bold">Nouveau Pointage</DialogTitle>
+                    <DialogDescription className="text-blue-100 opacity-90">Enregistrer l'arrivée d'un collaborateur</DialogDescription>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                <div className="p-8">
+                    <form onSubmit={handleCheckIn} className="space-y-5">
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase text-slate-400">Personnel</Label>
+                            <select
+                                value={checkInData.user_id}
+                                onChange={(e) => setCheckInData({ ...checkInData, user_id: e.target.value })}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-blue-500/20"
+                                required
+                            >
+                                <option value="">Choisir un ouvrier...</option>
+                                {workers?.map((w: any) => (
+                                    <option key={w.id} value={w.id}>{w.name}</option>
+                                ))}
+                            </select>
+                        </div>
 
-        {/* Assign Workers Modal */}
-        {showAssignWorkers && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              <CardHeader>
-                <CardTitle>Assigner les Ouvriers au Projet</CardTitle>
-                <CardDescription>Sélectionnez les ouvriers à assigner au projet</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">Projet</label>
-                    <select
-                      value={selectedProjectForAssign}
-                      onChange={(e) => setSelectedProjectForAssign(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg bg-background text-foreground"
-                    >
-                      <option value="">-- Sélectionner --</option>
-                      {projects.map((p: any) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold uppercase text-slate-400">Chantier</Label>
+                            <select
+                                value={checkInData.project_id}
+                                onChange={(e) => setCheckInData({ ...checkInData, project_id: e.target.value })}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-blue-500/20"
+                                required
+                            >
+                                <option value="">Choisir un projet...</option>
+                                {projects.map((p: any) => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold">Ouvriers ({selectedWorkersForAssign.length} sélectionnés)</label>
-                    <div className="border rounded-lg p-3 space-y-2 max-h-64 overflow-y-auto bg-muted/20">
-                      {workers?.map((worker: any) => (
-                        <label key={worker.id} className="flex items-center gap-2 cursor-pointer hover:bg-accent p-2 rounded">
-                          <input
-                            type="checkbox"
-                            checked={selectedWorkersForAssign.includes(worker.id)}
-                            onChange={() => toggleWorkerSelection(worker.id)}
-                            className="rounded"
-                          />
-                          <span>{worker.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold uppercase text-slate-400">Période (Shift)</Label>
+                                <select
+                                    value={checkInData.shift}
+                                    onChange={(e) => setCheckInData({ ...checkInData, shift: e.target.value })}
+                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-blue-500/20"
+                                    required
+                                >
+                                    {shifts?.map((sh: any) => (
+                                        <option key={sh.value} value={sh.value}>{sh.icon} {sh.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold uppercase text-slate-400">Statut initial</Label>
+                                <select
+                                    value={checkInData.status}
+                                    onChange={(e) => setCheckInData({ ...checkInData, status: e.target.value })}
+                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-blue-500/20"
+                                >
+                                    {statuses?.map((s: any) => (
+                                        <option key={s.value} value={s.value}>{s.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
 
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleAssignWorkers}
-                      disabled={loading || !selectedProjectForAssign || selectedWorkersForAssign.length === 0}
-                      className="flex-1 rounded-lg"
-                    >
-                      {loading ? 'Assignation...' : 'Assigner'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowAssignWorkers(false);
-                        setSelectedWorkersForAssign([]);
-                        setSelectedProjectForAssign('');
-                      }}
-                      className="flex-1 rounded-lg"
-                    >
-                      Annuler
-                    </Button>
-                  </div>
+                        <div className="flex gap-3 pt-4">
+                            <Button type="submit" disabled={loading} className="flex-1 h-12 rounded-xl bg-blue-600 font-bold">
+                                {loading ? 'Traitement...' : 'Confirmer pointage'}
+                            </Button>
+                            <Button type="button" variant="outline" onClick={() => setShowCheckIn(false)} className="flex-1 h-12 rounded-xl">
+                                Annuler
+                            </Button>
+                        </div>
+                    </form>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+            </DialogContent>
+        </Dialog>
       </div>
     </>
   );
 }
 
-function StatCard({ icon: Icon, label, value, color = 'text-muted-foreground' }: any) {
-  return (
-    <Card className="border-border/50">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">{label}</p>
-            <p className="text-2xl font-bold">{value}</p>
-          </div>
-          <Icon className={`h-8 w-8 ${color} opacity-25`} />
-        </div>
-      </CardContent>
-    </Card>
-  );
+function PremiumStatCard({ title, value, icon: Icon, color, trend }: any) {
+    const colorVariants: any = {
+        blue: "bg-blue-500/10 text-blue-600",
+        emerald: "bg-emerald-500/10 text-emerald-600",
+        amber: "bg-amber-500/10 text-amber-600",
+        rose: "bg-rose-500/10 text-rose-600",
+    };
+
+    return (
+        <Card className="border-0 bg-white shadow-[0_8px_30px_-12px_rgba(0,0,0,0.1)] overflow-hidden transition-all hover:shadow-[0_15px_35px_-12px_rgba(0,0,0,0.15)] group">
+            <CardContent className="p-7">
+                <div className="flex items-center justify-between">
+                    <div className={cn("rounded-2xl p-4 transition-transform group-hover:scale-110 duration-500", colorVariants[color])}>
+                        <Icon className="h-6 w-6" />
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[13px] font-bold text-slate-400 uppercase tracking-widest mb-1">{title}</p>
+                        <h3 className="text-3xl font-black text-slate-900">{value}</h3>
+                    </div>
+                </div>
+                <div className="mt-6 flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest italic opacity-80">
+                    <div className={cn("h-1.5 w-1.5 rounded-full", color === 'blue' ? 'bg-blue-400' : color === 'emerald' ? 'bg-emerald-400' : color === 'amber' ? 'bg-amber-400' : 'bg-rose-400')} />
+                    {trend}
+                </div>
+            </CardContent>
+        </Card>
+    );
 }

@@ -81,43 +81,109 @@ class ProjectController extends Controller
 
     public function show(Project $project): Response
     {
-        $project->load(['engineer', 'manager', 'steps', 'tasks.workers']);
+        $project->load(['engineer', 'manager', 'storekeeper', 'steps', 'tasks.workers', 'workers']);
 
-        // Calculate total unique workers for the project
-        $totalWorkers = $project->tasks
-            ->flatMap(fn ($task) => $task->workers)
-            ->unique('id')
-            ->count();
+        $engineers = User::where('role', UserRole::Engineer)->get();
+        $storekeepers = User::where('role', UserRole::Storekeeper)->get();
+        $allWorkers = User::where('role', UserRole::Worker)->get();
+
+        // Calculate total unique workers for the project (from workers relation or tasks)
+        $totalWorkersCount = $project->workers->count();
 
         return Inertia::render('projects/show', [
             'project' => $project,
-            'totalWorkers' => $totalWorkers,
+            'totalWorkersCount' => $totalWorkersCount,
+            'engineers' => $engineers,
+            'storekeepers' => $storekeepers,
+            'allWorkers' => $allWorkers,
         ]);
     }
 
     public function update(Request $request, Project $project)
     {
         $validated = $request->validate([
-            'status' => 'required|in:initialisation,planifie,en_cours,termine',
+            'name' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'start_date' => 'nullable|date',
+            'deadline' => 'nullable|date',
+            'budget' => 'nullable|numeric|min:0',
+            'status' => 'nullable|in:initialisation,planifie,en_cours,termine,suspendu',
+            'engineer_id' => 'nullable|exists:users,id',
+            'storekeeper_id' => 'nullable|exists:users,id',
+            'steps' => 'nullable|array',
+            'steps.*.id' => 'nullable|exists:project_steps,id',
+            'steps.*.name' => 'required|string|max:255',
+            'steps.*.budget' => 'nullable|numeric|min:0',
         ]);
 
-        $oldStatus = $project->status;
-        $project->update($validated);
+        $project->update($request->only([
+            'name', 'description', 'start_date', 'deadline', 'budget', 'status', 'engineer_id', 'storekeeper_id',
+        ]));
+
+        if ($request->has('steps')) {
+            $existingStepIds = [];
+            foreach ($validated['steps'] as $index => $stepData) {
+                if (isset($stepData['id'])) {
+                    $step = $project->steps()->find($stepData['id']);
+                    if ($step) {
+                        $step->update([
+                            'name' => $stepData['name'],
+                            'budget' => $stepData['budget'] ?? 0,
+                            'order' => $index + 1,
+                        ]);
+                        $existingStepIds[] = $step->id;
+                    }
+                } else {
+                    $newStep = $project->steps()->create([
+                        'name' => $stepData['name'],
+                        'budget' => $stepData['budget'] ?? 0,
+                        'order' => $index + 1,
+                    ]);
+                    $existingStepIds[] = $newStep->id;
+                }
+            }
+            $project->steps()->whereNotIn('id', $existingStepIds)->delete();
+            $project->syncBudgetFromSteps();
+        }
 
         ActivityLog::create([
             'user_id' => auth()->id(),
             'action' => 'update_project',
-            'description' => "Mise à jour du projet : {$project->name} (Statut: {$oldStatus} → {$validated['status']})",
+            'description' => "Mise à jour complète du projet : {$project->name}",
             'properties' => [
                 'project_id' => $project->id,
-                'old_status' => $oldStatus,
-                'new_status' => $validated['status'],
+                'status' => $project->status,
             ],
         ]);
 
         return response()->json([
-            'project' => $project,
+            'project' => $project->load('steps', 'engineer', 'storekeeper'),
             'message' => 'Projet mis à jour avec succès',
+        ]);
+    }
+
+    public function assignWorkers(Request $request, Project $project)
+    {
+        $validated = $request->validate([
+            'worker_ids' => 'required|array',
+            'worker_ids.*' => 'exists:users,id',
+        ]);
+
+        $project->workers()->sync($validated['worker_ids']);
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'assign_workers',
+            'description' => 'Assignation de '.count($validated['worker_ids'])." ouvriers au projet : {$project->name}",
+            'properties' => [
+                'project_id' => $project->id,
+                'worker_count' => count($validated['worker_ids']),
+            ],
+        ]);
+
+        return response()->json([
+            'message' => 'Ouvriers assignés avec succès',
+            'workers' => $project->workers,
         ]);
     }
 

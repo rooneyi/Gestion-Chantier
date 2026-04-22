@@ -19,6 +19,7 @@ class Project extends Model
         'status',
         'manager_id',
         'engineer_id',
+        'storekeeper_id',
     ];
 
     protected $casts = [
@@ -35,6 +36,11 @@ class Project extends Model
     public function engineer()
     {
         return $this->belongsTo(User::class, 'engineer_id');
+    }
+
+    public function storekeeper()
+    {
+        return $this->belongsTo(User::class, 'storekeeper_id');
     }
 
     public function tasks()

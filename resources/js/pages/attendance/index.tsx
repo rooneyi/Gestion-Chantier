@@ -137,7 +137,7 @@ export default function AttendanceIndex({
       });
 
       if (response.ok) {
-        setAttendances(prev => prev.map(a => a.id === attendanceId ? { ...a, status: newStatus } : a));
+        setAttendances((prev: any[]) => prev.map((a: any) => a.id === attendanceId ? { ...a, status: newStatus } : a));
       }
     } catch (error) {
       console.error('Error:', error);

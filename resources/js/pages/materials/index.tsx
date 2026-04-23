@@ -3,6 +3,7 @@ import { AlertTriangle, Package, Pencil, Plus, Search, Trash2, ClipboardCheck, T
 import React from 'react';
 
 import { allocate, destroy, store, update } from '@/actions/App/Http/Controllers/Api/MaterialController';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -14,7 +15,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 
 type MaterialItem = {
     id: number;
@@ -200,7 +200,9 @@ export default function MaterialsIndex({
     };
 
     const handleDelete = (id: number) => {
-        if (!window.confirm('Supprimer ce matériau ?')) return;
+        if (!window.confirm('Supprimer ce matériau ?')) {
+return;
+}
 
         router.delete(destroy.url({ material: id }), {
             onSuccess: () => {
@@ -344,7 +346,9 @@ export default function MaterialsIndex({
 
                                 <div className="flex justify-end gap-2 pt-2">
                                     <DialogClose asChild>
-                                        <Button type="button" variant="outline" onClick={() => { setEditingMaterial(null); setFormData({ name: '', description: '', quantity_in_stock: '', unit: 'sacs', category: '' }); }}>Annuler</Button>
+                                        <Button type="button" variant="outline" onClick={() => {
+ setEditingMaterial(null); setFormData({ name: '', description: '', quantity_in_stock: '', unit: 'sacs', category: '' }); 
+}}>Annuler</Button>
                                     </DialogClose>
                                     <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Enregistrement...' : (editingMaterial ? 'Modifier' : 'Créer')}</Button>
                                 </div>

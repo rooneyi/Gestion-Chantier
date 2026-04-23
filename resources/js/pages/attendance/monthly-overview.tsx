@@ -11,20 +11,39 @@ export default function MonthlyOverview({ userStats, month, projects, selectedPr
 
   const handleFiltersChange = () => {
     const params = new URLSearchParams();
-    if (displayMonth) params.append('month', displayMonth);
-    if (displayProject) params.append('project_id', displayProject);
+
+    if (displayMonth) {
+params.append('month', displayMonth);
+}
+
+    if (displayProject) {
+params.append('project_id', displayProject);
+}
+
     window.location.href = `/attendance/monthly?${params.toString()}`;
   };
 
   const getAttendancePercentage = (presentDays: number, totalDays: number) => {
-    if (totalDays === 0) return 0;
+    if (totalDays === 0) {
+return 0;
+}
+
     return Math.round((presentDays / totalDays) * 100);
   };
 
   const getAttendanceColor = (percentage: number) => {
-    if (percentage >= 90) return 'bg-green-100 text-green-800 dark:bg-green-900/30';
-    if (percentage >= 75) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30';
-    if (percentage >= 50) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30';
+    if (percentage >= 90) {
+return 'bg-green-100 text-green-800 dark:bg-green-900/30';
+}
+
+    if (percentage >= 75) {
+return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30';
+}
+
+    if (percentage >= 50) {
+return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30';
+}
+
     return 'bg-red-100 text-red-800 dark:bg-red-900/30';
   };
 
@@ -162,6 +181,7 @@ export default function MonthlyOverview({ userStats, month, projects, selectedPr
                   ) : (
                     userStats.map((stat: any) => {
                       const percentage = getAttendancePercentage(stat.present_days, stat.total_days);
+
                       return (
                         <tr key={stat.id} className="border-b border-border/50 hover:bg-muted/50">
                           <td className="py-3 px-4">

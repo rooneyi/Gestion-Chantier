@@ -3,6 +3,7 @@ import { Pencil, Search, Trash2, UserPlus, Users, TrendingUp, History as Activit
 import React from 'react';
 
 import { destroy, index, store, update } from '@/actions/App/Http/Controllers/UserController';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -14,8 +15,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { UserRole, UserRoleValue } from '@/Enums/UserRole';
+import type { UserRoleValue } from '@/Enums/UserRole';
+import { UserRole } from '@/Enums/UserRole';
 
 type UserItem = {
   id: number;
@@ -339,7 +340,9 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
 
                   <div className="flex justify-end gap-2 pt-2">
                     <DialogClose asChild>
-                      <Button type="button" variant="outline" onClick={() => { setEditingUser(null); setFormData({ name: '', email: '', password: '', role: UserRole.Worker.value, daily_rate: '', skills: '' }); }}>Annuler</Button>
+                      <Button type="button" variant="outline" onClick={() => {
+ setEditingUser(null); setFormData({ name: '', email: '', password: '', role: UserRole.Worker.value, daily_rate: '', skills: '' }); 
+}}>Annuler</Button>
                     </DialogClose>
                     <Button type="submit" disabled={isLoading}>{isLoading ? 'Enregistrement...' : (editingUser ? 'Modifier' : 'Créer')}</Button>
                   </div>

@@ -38,6 +38,7 @@ export default function ReportsIndex({
     const fetchWorkers = async () => {
         try {
             const workersRes = await fetch('/api/workers');
+
             if (workersRes.ok) {
                 const data = await workersRes.json();
                 setWorkers(data.workers || []);
@@ -86,6 +87,7 @@ export default function ReportsIndex({
 
         if (!submissionForm.title.trim() || !submissionForm.content.trim()) {
             alert('Le titre et le contenu sont obligatoires.');
+
             return;
         }
 
@@ -113,7 +115,9 @@ export default function ReportsIndex({
     };
 
     const handleDownloadReport = () => {
-        if (!reportData) return;
+        if (!reportData) {
+            return;
+        }
 
         const content = generateReportContent();
         const element = document.createElement('a');
@@ -169,6 +173,7 @@ export default function ReportsIndex({
         selectedProjects.forEach((p: any) => {
             content += `${p.name},${p.status},${p.start_date},${p.deadline},${p.budget},${p.manager || '-'},${p.engineer || '-'},${p.completed_tasks}/${p.total_tasks},${p.total_workers},${p.total_steps}\n`;
         });
+
         return content;
     };
 
@@ -178,6 +183,7 @@ export default function ReportsIndex({
         selectedWorkers.forEach((w: any) => {
             content += `${w.name},${w.email},${w.role},${w.completed_tasks}/${w.total_tasks},${w.projects_worked_on},${w.attendance_days},${w.total_working_hours},${w.avg_hours_per_day}\n`;
         });
+
         return content;
     };
 
@@ -192,6 +198,7 @@ export default function ReportsIndex({
         d.user_statistics.forEach((s: any) => {
             content += `${s.user_name || 'Inconnu'},${s.count}\n`;
         });
+
         return content;
     };
 

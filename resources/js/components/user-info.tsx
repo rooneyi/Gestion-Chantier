@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserRole } from '@/Enums/UserRole';
 import { useInitials } from '@/hooks/use-initials';
 import type { User } from '@/types';
-import { UserRole } from '@/Enums/UserRole';
 
 export function UserInfo({
     user,

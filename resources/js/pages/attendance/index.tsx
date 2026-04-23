@@ -8,7 +8,6 @@ import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 export default function AttendanceIndex({
   attendances: initialAttendances,
@@ -48,10 +48,17 @@ export default function AttendanceIndex({
 
   const refreshAttendances = async () => {
     setRefreshing(true);
+
     try {
       const params = new URLSearchParams();
-      if (displayDate) params.append('date', displayDate);
-      if (displayProject) params.append('project_id', displayProject);
+
+      if (displayDate) {
+params.append('date', displayDate);
+}
+
+      if (displayProject) {
+params.append('project_id', displayProject);
+}
       
       const response = await fetch(`/api/attendance/list?${params.toString()}`, {
         headers: { 'Accept': 'application/json' },
@@ -92,6 +99,7 @@ export default function AttendanceIndex({
       if (!response.ok) {
         const error = await response.json();
         alert(error.message || 'Erreur lors de l\'enregistrement');
+
         return;
       }
 
@@ -106,7 +114,9 @@ export default function AttendanceIndex({
   };
 
   const handleCheckOut = async (attendanceId: number) => {
-    if (!window.confirm('Confirmer le départ?')) return;
+    if (!window.confirm('Confirmer le départ?')) {
+return;
+}
 
     try {
       const response = await fetch(`/attendance/${attendanceId}/check-out`, {
@@ -145,10 +155,15 @@ export default function AttendanceIndex({
   };
 
   const formatTime = (time: string | null) => {
-    if (!time) return '-';
+    if (!time) {
+return '-';
+}
+
     try {
       return new Date(time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    } catch { return '-'; }
+    } catch {
+ return '-'; 
+}
   };
 
   return (

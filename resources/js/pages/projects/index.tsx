@@ -214,7 +214,10 @@ export default function ProjectsIndex({ projects, engineers }: { projects: Proje
   };
 
   const removeStep = (index: number) => {
-    if (formData.steps.length <= 1) return;
+    if (formData.steps.length <= 1) {
+return;
+}
+
     const newSteps = formData.steps.filter((_, i) => i !== index);
     const totalBudget = newSteps.reduce((sum, step) => sum + (Number(step.budget) || 0), 0);
     

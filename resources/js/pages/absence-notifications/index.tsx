@@ -1,9 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
 import { AlertCircle, Eye, CheckCircle, Clock } from 'lucide-react';
 import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 export default function AbsenceNotificationsIndex({ absenceNotifications, pendingCount }: any) {
   const [filters, setFilters] = useState({
@@ -32,6 +32,7 @@ export default function AbsenceNotificationsIndex({ absenceNotifications, pendin
       notified: 'Notifié',
       resolved: 'Résolu',
     };
+
     return labels[status] || status;
   };
 

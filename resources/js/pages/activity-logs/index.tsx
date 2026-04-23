@@ -3,8 +3,8 @@ import {
   User, Clock, FileText, Activity, Layers, 
   Trash2, Edit3, PlusCircle, ChevronRight, Info
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 export default function ActivityLogsIndex({ logs }: any) {
@@ -17,6 +17,7 @@ export default function ActivityLogsIndex({ logs }: any) {
       update_task: { color: 'purple', icon: Edit3, label: 'MàJ Tâche' },
       default: { color: 'slate', icon: Activity, label: 'Action Système' }
     };
+
     return themes[action] || themes.default;
   };
 
@@ -77,6 +78,7 @@ export default function ActivityLogsIndex({ logs }: any) {
                     <CardContent className="space-y-3">
                         {['create_project', 'update_project', 'delete_project', 'create_task'].map(act => {
                             const theme = getActionTheme(act);
+
                             return (
                                 <div key={act} className="flex items-center gap-3">
                                     <div className={cn("h-2 w-2 rounded-full", `bg-${theme.color}-500`)} />
@@ -103,6 +105,7 @@ export default function ActivityLogsIndex({ logs }: any) {
                                 {logs.map((log: any) => {
                                     const theme = getActionTheme(log.action);
                                     const Icon = theme.icon;
+
                                     return (
                                         <div key={log.id} className="group relative p-8 transition-all hover:bg-slate-50/50">
                                             <div className="flex items-start gap-6">

@@ -6,17 +6,17 @@ import {
   LayoutGrid, ListChecks, Settings2, Info
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { update, destroy } from '@/actions/App/Http/Controllers/Api/ProjectController';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
 import { 
   Dialog, DialogContent, DialogDescription, 
   DialogHeader, DialogTitle, DialogTrigger 
 } from "@/components/ui/dialog";
-import { update, destroy } from '@/actions/App/Http/Controllers/Api/ProjectController';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 export default function ProjectDetail({ project, totalWorkersCount, engineers, storekeepers, allWorkers }: any) {
   const [isEditing, setIsEditing] = useState(false);
@@ -53,11 +53,15 @@ export default function ProjectDetail({ project, totalWorkersCount, engineers, s
 
   const getStatusTheme = (statusVal: string) => {
     const found = statusOptions.find(o => o.value === statusVal);
+
     return found ? found.color : 'slate';
   };
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Non défini';
+    if (!dateString) {
+return 'Non défini';
+}
+
     return new Date(dateString).toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'long',
@@ -68,6 +72,7 @@ export default function ProjectDetail({ project, totalWorkersCount, engineers, s
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
     try {
       const resp = await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
@@ -91,6 +96,7 @@ export default function ProjectDetail({ project, totalWorkersCount, engineers, s
 
   const handleAssignWorkers = async () => {
     setIsLoading(true);
+
     try {
       const resp = await fetch(`/api/projects/${project.id}/workers`, {
         method: 'POST',
@@ -113,7 +119,10 @@ export default function ProjectDetail({ project, totalWorkersCount, engineers, s
   };
 
   const handleDelete = async () => {
-    if (!confirm('Toutes les données associées seront perdues. Confirmer?')) return;
+    if (!confirm('Toutes les données associées seront perdues. Confirmer?')) {
+return;
+}
+
     try {
       const resp = await fetch(`/api/projects/${project.id}`, {
         method: 'DELETE',
@@ -121,8 +130,13 @@ export default function ProjectDetail({ project, totalWorkersCount, engineers, s
           'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
         },
       });
-      if (resp.ok) router.visit('/projects');
-    } catch (err) { console.error(err); }
+
+      if (resp.ok) {
+router.visit('/projects');
+}
+    } catch (err) {
+ console.error(err); 
+}
   };
 
   const addStep = () => {
@@ -491,8 +505,11 @@ export default function ProjectDetail({ project, totalWorkersCount, engineers, s
                                     className="hidden" 
                                     checked={selectedWorkerIds.includes(worker.id)}
                                     onChange={(e) => {
-                                        if (e.target.checked) setSelectedWorkerIds([...selectedWorkerIds, worker.id]);
-                                        else setSelectedWorkerIds(selectedWorkerIds.filter(id => id !== worker.id));
+                                        if (e.target.checked) {
+setSelectedWorkerIds([...selectedWorkerIds, worker.id]);
+} else {
+setSelectedWorkerIds(selectedWorkerIds.filter(id => id !== worker.id));
+}
                                     }}
                                 />
                                 <div className="flex-1">
@@ -523,6 +540,7 @@ function DetailStatCard({ title, value, icon: Icon, color, sub }: any) {
         amber: "bg-amber-500 text-white shadow-amber-500/20",
         rose: "bg-rose-500 text-white shadow-rose-500/20",
     }
+
     return (
         <Card className="border-0 bg-white shadow-[0_8px_30px_-12px_rgba(0,0,0,0.1)] group">
             <CardContent className="p-7">
@@ -552,6 +570,7 @@ function PersonnelItem({ label, name, email, role, icon: Icon, iconColor }: any)
         blue: "bg-blue-500 text-white",
         purple: "bg-purple-500 text-white",
     }
+
     return (
         <div className="flex items-start gap-4 p-4 rounded-2xl border border-slate-50 bg-slate-50/30 transition-all hover:bg-white hover:border-slate-200">
             <div className={cn("h-10 w-10 flex-shrink-0 rounded-xl flex items-center justify-center", colors[iconColor])}>

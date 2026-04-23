@@ -12,14 +12,27 @@ export default function WorkerOverview({ worker, attendances, statistics, period
 
   const handleLoad = () => {
     const params = new URLSearchParams();
-    if (startDate) params.append('start_date', startDate);
-    if (endDate) params.append('end_date', endDate);
-    if (selectedId) params.append('worker_id', selectedId);
+
+    if (startDate) {
+params.append('start_date', startDate);
+}
+
+    if (endDate) {
+params.append('end_date', endDate);
+}
+
+    if (selectedId) {
+params.append('worker_id', selectedId);
+}
+
     window.location.href = `/attendance/worker/${selectedId}?${params.toString()}`;
   };
 
   const formatTime = (time: string | null) => {
-    if (!time) return '-';
+    if (!time) {
+return '-';
+}
+
     try {
       return new Date(time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     } catch {
@@ -28,13 +41,17 @@ export default function WorkerOverview({ worker, attendances, statistics, period
   };
 
   const calculateDuration = (checkIn: string | null, checkOut: string | null) => {
-    if (!checkIn || !checkOut) return '-';
+    if (!checkIn || !checkOut) {
+return '-';
+}
+
     try {
       const start = new Date(checkIn);
       const end = new Date(checkOut);
       const diffMs = end.getTime() - start.getTime();
       const hours = Math.floor(diffMs / (1000 * 60 * 60));
       const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
       return `${hours}h ${minutes}m`;
     } catch {
       return '-';

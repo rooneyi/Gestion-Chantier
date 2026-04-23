@@ -1,9 +1,9 @@
 import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useCallback, useState } from 'react';
 
 export default function AbsenceNotificationShow({ absenceNotification }: any) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,6 +30,7 @@ export default function AbsenceNotificationShow({ absenceNotification }: any) {
       notified: 'Notifié',
       resolved: 'Résolu',
     };
+
     return labels[status] || status;
   };
 

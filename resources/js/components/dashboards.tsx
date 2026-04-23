@@ -30,6 +30,7 @@ import { Doughnut, Line } from 'react-chartjs-2';
 import { apiList, updateStatus } from '@/actions/App/Http/Controllers/AttendanceController';
 import {
     assignWorkers,
+    getProjectWorkers,
     initializeForProject,
 } from '@/actions/App/Http/Controllers/AttendanceInitializationController';
 import { Badge } from '@/components/ui/badge';
@@ -388,6 +389,39 @@ export const EngineerDashboard = ({
     const [showAssignDialog, setShowAssignDialog] = React.useState(false);
     const [showInitializeDialog, setShowInitializeDialog] = React.useState(false);
 
+    const loadAssignedWorkers = React.useCallback(async () => {
+        if (!selectedProjectId) {
+            setSelectedWorkers([]);
+
+            return;
+        }
+
+        try {
+            const response = await fetch(getProjectWorkers.url(Number(selectedProjectId)), {
+                method: getProjectWorkers(Number(selectedProjectId)).method,
+                headers: {
+                    Accept: 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const payload = await response.json();
+            const assignedIds = (payload.workers ?? []).map((worker: { id: number }) => worker.id);
+            setSelectedWorkers(assignedIds);
+        } catch {
+            // Silent fail: user can still assign manually
+        }
+    }, [selectedProjectId]);
+
+    React.useEffect(() => {
+        if (showAssignDialog) {
+            void loadAssignedWorkers();
+        }
+    }, [showAssignDialog, loadAssignedWorkers]);
+
     const refreshAttendances = React.useCallback(async () => {
         if (!selectedProjectId || !selectedDate) {
             setAttendances([]);
@@ -562,7 +596,16 @@ export const EngineerDashboard = ({
                     <p className="text-sm text-muted-foreground">Superviser l'ordonnancement et les ressources humaines.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+                    <Dialog
+                        open={showAssignDialog}
+                        onOpenChange={(isOpen) => {
+                            setShowAssignDialog(isOpen);
+
+                            if (isOpen) {
+                                void loadAssignedWorkers();
+                            }
+                        }}
+                    >
                         <DialogTrigger asChild>
                             <Button variant="outline" size="sm" className="rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-sm">
                                 Assigner Personnel
@@ -582,6 +625,9 @@ export const EngineerDashboard = ({
                                                     onChange={() => toggleWorker(worker.id)}
                                                 />
                                                 <span>{worker.name}</span>
+                                                <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                                                    {worker.role === 'magasinier' ? 'Magasinier' : 'Ouvrier'}
+                                                </span>
                                             </label>
                                         ))
                                     ) : (

@@ -85,7 +85,7 @@ class DashboardController extends Controller
                 ->get();
 
             $data['attendanceWorkers'] = User::whereIn('role', [UserRole::Worker, UserRole::Magasinier])
-                ->select('id', 'name', 'email')
+                ->select('id', 'name', 'email', 'role')
                 ->orderBy('name')
                 ->get();
 

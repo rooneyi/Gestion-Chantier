@@ -61,4 +61,14 @@ class User extends Authenticatable
             ->whereIn('status', ['initialisation', 'en_cours', 'planifie'])
             ->exists() ? 'Actif' : 'Inactif';
     }
+
+    public function sentReports()
+    {
+        return $this->hasMany(ReportSubmission::class, 'sender_id');
+    }
+
+    public function receivedReports()
+    {
+        return $this->hasMany(ReportSubmission::class, 'recipient_id');
+    }
 }

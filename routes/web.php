@@ -43,6 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Report routes
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::post('reports/generate', [ReportController::class, 'generate'])->name('reports.generate');
+    Route::post('reports/submit', [ReportController::class, 'submit'])->name('reports.submit');
 
     // API routes
     Route::get('api/projects', [FilterController::class, 'projects']);

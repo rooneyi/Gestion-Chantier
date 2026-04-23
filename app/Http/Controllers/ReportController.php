@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\ActivityLog;
 use App\Models\Attendance;
 use App\Models\Project;
+use App\Models\ReportSubmission;
 use App\Models\Task;
 use App\Models\User;
 use Carbon\Carbon;
@@ -16,6 +18,22 @@ class ReportController extends Controller
 {
     public function index(): Response
     {
+        $user = request()->user();
+        $userRoleValue = $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
+        $projects = Project::select('id', 'name')->orderBy('name')->get();
+
+        $receivedReports = ReportSubmission::with(['sender:id,name,role', 'project:id,name'])
+            ->where('recipient_id', $user->id)
+            ->latest()
+            ->take(20)
+            ->get();
+
+        $sentReports = ReportSubmission::with(['recipient:id,name,role', 'project:id,name'])
+            ->where('sender_id', $user->id)
+            ->latest()
+            ->take(20)
+            ->get();
+
         return Inertia::render('reports/index', [
             'reportTypes' => [
                 ['value' => 'global', 'label' => 'Rapport Global'],
@@ -23,7 +41,84 @@ class ReportController extends Controller
                 ['value' => 'worker', 'label' => 'Rapport par Ouvrier'],
                 ['value' => 'activities', 'label' => 'Rapport d\'Activités'],
             ],
+            'projects' => $projects,
+            'receivedReports' => $receivedReports,
+            'sentReports' => $sentReports,
+            'canSubmitReport' => in_array($userRoleValue, [
+                UserRole::Worker->value,
+                UserRole::Magasinier->value,
+                UserRole::Engineer->value,
+            ], true),
+            'submitTargetLabel' => $this->resolveTargetLabel($userRoleValue),
         ]);
+    }
+
+    public function submit(Request $request)
+    {
+        $user = $request->user();
+        $userRoleValue = $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
+
+        if (! in_array($userRoleValue, [UserRole::Worker->value, UserRole::Magasinier->value, UserRole::Engineer->value], true)) {
+            abort(403, 'Ce role ne peut pas soumettre de rapport.');
+        }
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'content' => ['required', 'string', 'min:20'],
+            'project_id' => ['nullable', 'exists:projects,id'],
+        ]);
+
+        $recipientId = $this->resolveRecipientIdForUser($user, $userRoleValue);
+
+        if (! $recipientId) {
+            return back()->withErrors([
+                'recipient' => 'Aucun destinataire valide n\'a ete trouve pour ce rapport.',
+            ]);
+        }
+
+        ReportSubmission::create([
+            'title' => $validated['title'],
+            'content' => $validated['content'],
+            'project_id' => $validated['project_id'] ?? null,
+            'sender_id' => $user->id,
+            'recipient_id' => $recipientId,
+            'status' => 'submitted',
+        ]);
+
+        return to_route('reports.index')->with('success', 'Rapport soumis avec succes.');
+    }
+
+    private function resolveTargetLabel(string $role): string
+    {
+        return match ($role) {
+            UserRole::Engineer->value => 'Manager',
+            UserRole::Worker->value, UserRole::Magasinier->value => 'Ingénieur',
+            default => 'Destinataire',
+        };
+    }
+
+    private function resolveRecipientIdForUser(User $user, string $userRoleValue): ?int
+    {
+        if ($userRoleValue === UserRole::Engineer->value) {
+            return User::where('role', UserRole::Manager->value)->value('id');
+        }
+
+        if (in_array($userRoleValue, [UserRole::Worker->value, UserRole::Magasinier->value], true)) {
+            $engineerId = Project::query()
+                ->whereHas('workers', function ($query) use ($user) {
+                    $query->where('users.id', $user->id);
+                })
+                ->whereNotNull('engineer_id')
+                ->value('engineer_id');
+
+            if ($engineerId) {
+                return (int) $engineerId;
+            }
+
+            return User::where('role', UserRole::Engineer->value)->value('id');
+        }
+
+        return null;
     }
 
     public function generate(Request $request)

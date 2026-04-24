@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
 
 test('profile page is displayed', function () {
     $user = User::factory()->create();
@@ -10,6 +12,18 @@ test('profile page is displayed', function () {
         ->get(route('profile.edit'));
 
     $response->assertOk();
+});
+
+test('manager profile page exposes account security controls', function () {
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+
+    $this->actingAs($manager)
+        ->get(route('profile.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('settings/profile')
+            ->where('canManageAccountSecurity', true)
+        );
 });
 
 test('profile information can be updated', function () {
@@ -61,7 +75,7 @@ test('user can delete their account', function () {
 
     $response
         ->assertSessionHasNoErrors()
-        ->assertRedirect(route('home'));
+        ->assertRedirect('/');
 
     $this->assertGuest();
     expect($user->fresh())->toBeNull();

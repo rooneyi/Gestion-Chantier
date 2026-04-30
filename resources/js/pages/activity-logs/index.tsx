@@ -1,13 +1,14 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { 
   User, Clock, FileText, Activity, Layers, 
-  Trash2, Edit3, PlusCircle, ChevronRight, Info
+  Trash2, Edit3, PlusCircle, ChevronRight, Info, UserCheck, Filter
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export default function ActivityLogsIndex({ logs }: any) {
+export default function ActivityLogsIndex({ logs, currentFilter = 'all' }: any) {
   const getActionTheme = (action: string) => {
     const themes: Record<string, { color: string, icon: any, label: string }> = {
       create_project: { color: 'blue', icon: PlusCircle, label: 'Création Projet' },
@@ -15,6 +16,7 @@ export default function ActivityLogsIndex({ logs }: any) {
       delete_project: { color: 'rose', icon: Trash2, label: 'Suppression Projet' },
       create_task: { color: 'emerald', icon: PlusCircle, label: 'Nouvelle Tâche' },
       update_task: { color: 'purple', icon: Edit3, label: 'MàJ Tâche' },
+      take_attendance: { color: 'teal', icon: UserCheck, label: 'Pointage Présence' },
       default: { color: 'slate', icon: Activity, label: 'Action Système' }
     };
 
@@ -38,19 +40,46 @@ export default function ActivityLogsIndex({ logs }: any) {
     emerald: "bg-emerald-500/10 text-emerald-600 border-emerald-200",
     purple: "bg-purple-500/10 text-purple-600 border-purple-200",
     slate: "bg-slate-500/10 text-slate-600 border-slate-200",
+    teal: "bg-teal-500/10 text-teal-600 border-teal-200",
+  };
+
+  const handleFilterChange = (value: string) => {
+    router.get('/activity-logs', { action: value }, { preserveState: true, preserveScroll: true });
   };
 
   return (
     <>
-      <Head title="Journal d'Activités" />
+      <Head title="Paramètres - Historique" />
 
       <div className="relative space-y-8 pb-10">
         {/* Decorative background */}
         <div className="pointer-events-none absolute inset-x-0 -top-40 -z-10 h-[500px] bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.05),transparent_40%)]" />
 
-        <div className="flex flex-col gap-2">
-            <h1 className="text-[42px] font-bold tracking-tight text-slate-900">Audit & Activités</h1>
-            <p className="text-lg text-slate-500">Transparence totale sur les modifications effectuées</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col gap-2">
+                <h1 className="text-[42px] font-bold tracking-tight text-slate-900">Paramètres</h1>
+                <p className="text-lg text-slate-500">Transparence totale sur les modifications effectuées</p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 rounded-xl border bg-white px-3 shadow-sm">
+                    <Filter className="h-4 w-4 text-slate-400" />
+                    <Select value={currentFilter} onValueChange={handleFilterChange}>
+                        <SelectTrigger className="w-[200px] border-0 bg-transparent ring-offset-transparent focus:ring-0 focus:ring-offset-0">
+                            <SelectValue placeholder="Filtrer par action" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Toutes les actions</SelectItem>
+                            <SelectItem value="create_project">Création Projet</SelectItem>
+                            <SelectItem value="update_project">Modification Projet</SelectItem>
+                            <SelectItem value="delete_project">Suppression Projet</SelectItem>
+                            <SelectItem value="create_task">Nouvelle Tâche</SelectItem>
+                            <SelectItem value="update_task">MàJ Tâche</SelectItem>
+                            <SelectItem value="take_attendance">Pointage Présence</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
@@ -61,7 +90,7 @@ export default function ActivityLogsIndex({ logs }: any) {
                     <CardHeader>
                         <CardTitle className="text-white/60 text-xs font-bold uppercase tracking-widest">Aperçu</CardTitle>
                         <div className="text-4xl font-black">{logs.length}</div>
-                        <p className="text-white/40 text-sm">Événements enregistrés</p>
+                        <p className="text-white/40 text-sm">Événements affichés</p>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center gap-2 rounded-xl bg-white/5 p-3 text-xs font-medium text-white/80">
@@ -76,7 +105,7 @@ export default function ActivityLogsIndex({ logs }: any) {
                         <CardTitle className="text-sm font-bold">Légende des actions</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        {['create_project', 'update_project', 'delete_project', 'create_task'].map(act => {
+                        {['create_project', 'update_project', 'delete_project', 'create_task', 'take_attendance'].map(act => {
                             const theme = getActionTheme(act);
 
                             return (
@@ -93,7 +122,7 @@ export default function ActivityLogsIndex({ logs }: any) {
             {/* Main Timeline */}
             <div className="lg:col-span-8">
                 <Card className="border-0 bg-white shadow-[0_8px_30px_-12px_rgba(0,0,0,0.1)] overflow-hidden">
-                    <CardHeader className="border-b border-slate-50 pb-6 pt-6 px-8">
+                    <CardHeader className="border-b border-slate-50 pb-6 pt-6 px-8 flex flex-row items-center justify-between">
                         <CardTitle className="text-xl font-bold flex items-center gap-2">
                             <Activity className="h-5 w-5 text-purple-500" />
                             File d'événements

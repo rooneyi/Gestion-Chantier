@@ -28,7 +28,7 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
             'role' => 'required|in:'.implode(',', array_map(fn ($role) => $role->value, UserRole::cases())),
-            'daily_rate' => 'nullable|numeric|min:0',
+            'phone' => 'nullable|string|max:255',
             'skills' => 'nullable|string',
         ]);
 
@@ -50,7 +50,7 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email,'.$user->id,
             'password' => 'nullable|string|min:8',
             'role' => 'required|in:'.implode(',', array_map(fn ($role) => $role->value, UserRole::cases())),
-            'daily_rate' => 'nullable|numeric|min:0',
+            'phone' => 'nullable|string|max:255',
             'skills' => 'nullable|string',
         ]);
 

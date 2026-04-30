@@ -16,9 +16,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 
 export default function ProjectDetail({ project, totalWorkersCount, engineers, storekeepers, allWorkers }: any) {
+    const { currency, setCurrency, formatCurrency } = useCurrency();
   const [isEditing, setIsEditing] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +29,7 @@ export default function ProjectDetail({ project, totalWorkersCount, engineers, s
     name: project.name,
     description: project.description || '',
     budget: project.budget,
+    progress: project.progress || 0,
     start_date: project.start_date ? project.start_date.split('T')[0] : '',
     deadline: project.deadline ? project.deadline.split('T')[0] : '',
     status: project.status,
@@ -185,6 +188,14 @@ router.visit('/projects');
           </div>
 
           <div className="flex flex-wrap gap-3">
+                        <select
+                            value={currency}
+                            onChange={(event) => setCurrency(event.target.value as 'USD' | 'CDF')}
+                            className="h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
+                        >
+                            <option value="USD">USD ($)</option>
+                            <option value="CDF">FC (CDF)</option>
+                        </select>
             <Button variant="outline" onClick={() => setIsEditing(true)} className="h-11 rounded-xl border-slate-200 bg-white px-6 font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50">
               <Edit className="mr-2 h-4 w-4 text-blue-500" />
               Modifier Projet
@@ -198,7 +209,7 @@ router.visit('/projects');
 
         {/* Top Grid: Major Stats */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <DetailStatCard title="Budget Total" value={`${project.budget.toLocaleString()} €`} icon={Wallet} color="emerald" sub="Financement alloué" />
+          <DetailStatCard title="Budget Total" value={formatCurrency(Number(project.budget || 0))} icon={Wallet} color="emerald" sub="Financement alloué" />
           <DetailStatCard title="Main d'œuvre" value={totalWorkersCount} icon={Users} color="blue" sub="Ouvriers actifs" />
           <DetailStatCard title="Date Butoir" value={formatDate(project.deadline)} icon={Clock} color="amber" sub="Échéance prévue" />
           <DetailStatCard title="Localisation" value="Site Central" icon={MapPin} color="rose" sub="Lieu du chantier" />
@@ -298,7 +309,7 @@ router.visit('/projects');
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-lg font-black text-emerald-600">{step.budget.toLocaleString()} €</div>
+                                            <div className="text-lg font-black text-emerald-600">{formatCurrency(Number(step.budget || 0))}</div>
                                             <div className="flex items-center justify-end gap-1 text-[10px] font-black text-slate-300 uppercase italic">
                                                 <CheckCircle className="h-2.5 w-2.5" />
                                                 Planifié
@@ -437,6 +448,10 @@ router.visit('/projects');
                                         {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                     </select>
                                 </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black uppercase text-slate-400">Progression globale (%)</Label>
+                                    <Input type="number" min="0" max="100" value={formData.progress} onChange={e => setFormData({...formData, progress: parseInt(e.target.value) || 0})} className="h-12 rounded-xl focus:ring-blue-500/20" />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -459,7 +474,7 @@ router.visit('/projects');
                                         <Input value={step.name} onChange={e => updateStep(idx, 'name', e.target.value)} className="h-10 border-0 bg-transparent text-sm font-black focus:ring-0 px-0 rounded-none border-b border-transparent focus:border-emerald-500" placeholder="Ex: Fondations..." />
                                     </div>
                                     <div className="w-40 space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400">Budget (€)</Label>
+                                        <Label className="text-[10px] font-black uppercase text-slate-400">Budget ({currency})</Label>
                                         <Input type="number" value={step.budget} onChange={e => updateStep(idx, 'budget', e.target.value)} className="h-10 border-0 bg-transparent text-sm font-black text-emerald-600 focus:ring-0 px-0 rounded-none border-b border-transparent focus:border-emerald-500" />
                                     </div>
                                     <Button type="button" variant="ghost" size="icon" onClick={() => removeStep(idx)} className="h-10 w-10 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl">

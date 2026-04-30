@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useCurrency } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 
 ChartJS.register(
@@ -157,13 +158,7 @@ const StatCard = ({
 };
 
 export const ManagerDashboard = ({ projects = [], stats = {}, recentActivities = [], materialDistribution = [] }: any) => {
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('fr-FR', {
-            style: 'currency',
-            currency: 'USD',
-            maximumFractionDigits: 0,
-        }).format(value);
-    };
+    const { formatCurrency } = useCurrency();
 
     const lineData = {
         labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin'],

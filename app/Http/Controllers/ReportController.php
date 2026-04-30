@@ -68,7 +68,7 @@ class ReportController extends Controller
             'project_id' => ['nullable', 'exists:projects,id'],
         ]);
 
-        $recipientId = $this->resolveRecipientIdForUser($user, $userRoleValue);
+        $recipientId = $this->resolveRecipientIdForUser($user, $userRoleValue, $validated['project_id'] ?? null);
 
         if (! $recipientId) {
             return back()->withErrors([
@@ -97,19 +97,32 @@ class ReportController extends Controller
         };
     }
 
-    private function resolveRecipientIdForUser(User $user, string $userRoleValue): ?int
+    private function resolveRecipientIdForUser(User $user, string $userRoleValue, ?int $projectId = null): ?int
     {
         if ($userRoleValue === UserRole::Engineer->value) {
+            if ($projectId) {
+                $projectManagerId = Project::where('id', $projectId)->value('manager_id');
+                if ($projectManagerId) {
+                    return (int) $projectManagerId;
+                }
+            }
+
             return User::where('role', UserRole::Manager->value)->value('id');
         }
 
         if (in_array($userRoleValue, [UserRole::Worker->value, UserRole::Magasinier->value], true)) {
-            $engineerId = Project::query()
-                ->whereHas('workers', function ($query) use ($user) {
-                    $query->where('users.id', $user->id);
-                })
-                ->whereNotNull('engineer_id')
-                ->value('engineer_id');
+            $engineerId = null;
+            if ($projectId) {
+                $engineerId = Project::where('id', $projectId)->value('engineer_id');
+            }
+            if (! $engineerId) {
+                $engineerId = Project::query()
+                    ->whereHas('workers', function ($query) use ($user) {
+                        $query->where('users.id', $user->id);
+                    })
+                    ->whereNotNull('engineer_id')
+                    ->value('engineer_id');
+            }
 
             if ($engineerId) {
                 return (int) $engineerId;

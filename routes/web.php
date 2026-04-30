@@ -37,6 +37,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('materials/{material}', [MaterialController::class, 'update'])->name('materials.update');
     Route::delete('materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
     Route::post('materials/allocate', [MaterialController::class, 'allocate'])->name('materials.allocate');
+    Route::post('materials/stock-in', [MaterialController::class, 'stockIn'])->name('materials.stock-in');
+    Route::post('materials/stock-out', [MaterialController::class, 'stockOut'])->name('materials.stock-out');
 
     // Activity Log routes
     Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');

@@ -4,12 +4,13 @@ import { useState } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { useAppearance } from '@/hooks/use-appearance';
+import { getStoredCurrency, setStoredCurrency } from '@/lib/currency';
 import { edit as editAppearance } from '@/routes/appearance';
 
 export default function Appearance() {
     const { appearance, updateAppearance } = useAppearance();
     const [language, setLanguage] = useState('fr');
-    const [currency, setCurrency] = useState('usd');
+    const [currency, setCurrency] = useState<'USD' | 'CDF'>(() => getStoredCurrency());
 
     return (
         <>
@@ -54,16 +55,19 @@ export default function Appearance() {
                         <label className="text-sm font-medium">Devise</label>
                         <select
                             value={currency}
-                            onChange={(event) => setCurrency(event.target.value)}
+                            onChange={(event) => setCurrency(event.target.value as 'USD' | 'CDF')}
                             className="h-11 w-full rounded-xl border border-border/60 bg-background/90 px-3 text-sm"
                         >
-                            <option value="usd">USD ($)</option>
-                            <option value="cdf">CDF (FC)</option>
-                            <option value="eur">EUR (€)</option>
+                            <option value="USD">USD ($)</option>
+                            <option value="CDF">FC (CDF)</option>
                         </select>
                     </div>
 
-                    <Button type="button" className="gap-2 rounded-xl bg-blue-600 hover:bg-blue-700">
+                    <Button
+                        type="button"
+                        className="gap-2 rounded-xl bg-blue-600 hover:bg-blue-700"
+                        onClick={() => setStoredCurrency(currency)}
+                    >
                         <Save className="h-4 w-4" />
                         Sauvegarder
                     </Button>

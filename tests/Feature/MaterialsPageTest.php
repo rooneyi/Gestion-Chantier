@@ -2,6 +2,7 @@
 
 use App\Enums\UserRole;
 use App\Models\Material;
+use App\Models\Project;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -66,6 +67,141 @@ test('manager can create a material', function () {
         'quantity_in_stock' => 65,
         'unit' => 'tonnes',
     ]);
+});
+
+test('manager can update a material', function () {
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+    $material = Material::factory()->create([
+        'name' => 'Bois ancien',
+        'quantity_in_stock' => 20,
+        'unit' => 'm3',
+    ]);
+
+    $this->actingAs($manager)
+        ->put(route('materials.update', ['material' => $material->id]), [
+            'name' => 'Bois traité',
+            'description' => 'Lot B',
+            'quantity_in_stock' => 30,
+            'unit' => 'm3',
+            'category' => 'charpente',
+        ])
+        ->assertRedirect(route('materials.index'));
+
+    $this->assertDatabaseHas('materials', [
+        'id' => $material->id,
+        'name' => 'Bois traité',
+        'quantity_in_stock' => 30,
+    ]);
+});
+
+test('manager can delete a material', function () {
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+    $material = Material::factory()->create();
+
+    $this->actingAs($manager)
+        ->delete(route('materials.destroy', ['material' => $material->id]))
+        ->assertRedirect(route('materials.index'));
+
+    $this->assertDatabaseMissing('materials', [
+        'id' => $material->id,
+    ]);
+});
+
+test('manager can allocate material to project', function () {
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+    $material = Material::factory()->create([
+        'quantity_in_stock' => 100,
+        'unit' => 'sacs',
+    ]);
+    $project = Project::factory()->create();
+
+    $this->actingAs($manager)
+        ->post(route('materials.allocate'), [
+            'material_id' => $material->id,
+            'project_id' => $project->id,
+            'quantity_requested' => 15,
+            'comment' => 'Allocation manager',
+        ])
+        ->assertRedirect(route('materials.index'));
+
+    $this->assertDatabaseHas('resource_requests', [
+        'material_id' => $material->id,
+        'project_id' => $project->id,
+        'user_id' => $manager->id,
+        'status' => 'livre',
+    ]);
+
+    $material->refresh();
+    expect((float) $material->quantity_in_stock)->toBe(85.0);
+});
+
+test('manager can register stock entry movement', function () {
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+    $material = Material::factory()->create([
+        'quantity_in_stock' => 10,
+    ]);
+
+    $this->actingAs($manager)
+        ->post(route('materials.stock-in'), [
+            'material_id' => $material->id,
+            'quantity' => 5,
+            'reason' => 'Réapprovisionnement',
+            'comment' => 'Arrivage fournisseur',
+        ])
+        ->assertRedirect(route('materials.index'));
+
+    $material->refresh();
+    expect((float) $material->quantity_in_stock)->toBe(15.0);
+
+    $this->assertDatabaseHas('material_movements', [
+        'material_id' => $material->id,
+        'movement_type' => 'entry',
+        'reason' => 'Réapprovisionnement',
+    ]);
+});
+
+test('manager can register stock exit movement', function () {
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+    $material = Material::factory()->create([
+        'quantity_in_stock' => 10,
+    ]);
+
+    $this->actingAs($manager)
+        ->post(route('materials.stock-out'), [
+            'material_id' => $material->id,
+            'quantity' => 3,
+            'reason' => 'Casse',
+            'comment' => 'Pertes chantier',
+        ])
+        ->assertRedirect(route('materials.index'));
+
+    $material->refresh();
+    expect((float) $material->quantity_in_stock)->toBe(7.0);
+
+    $this->assertDatabaseHas('material_movements', [
+        'material_id' => $material->id,
+        'movement_type' => 'exit',
+        'reason' => 'Casse',
+    ]);
+});
+
+test('stock exit cannot exceed available quantity', function () {
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+    $material = Material::factory()->create([
+        'quantity_in_stock' => 2,
+    ]);
+
+    $this->actingAs($manager)
+        ->from(route('materials.index'))
+        ->post(route('materials.stock-out'), [
+            'material_id' => $material->id,
+            'quantity' => 5,
+            'reason' => 'Sortie test',
+        ])
+        ->assertRedirect(route('materials.index'));
+
+    $material->refresh();
+    expect((float) $material->quantity_in_stock)->toBe(2.0);
 });
 
 test('non magasinier cannot create a material', function () {

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useCurrency } from '@/lib/currency';
 
 export default function ReportsIndex({
     reportTypes,
@@ -17,6 +18,7 @@ export default function ReportsIndex({
     receivedReports,
     sentReports,
 }: any) {
+    const { currency, setCurrency, formatCurrency } = useCurrency();
     const formControlClass =
         'h-11 w-full rounded-xl border border-border/60 bg-background/90 px-3 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/40';
     const formTextareaClass =
@@ -162,7 +164,7 @@ export default function ReportsIndex({
         content += `Projets completes,${d.summary.completed_projects}\n`;
         content += `Taches totales,${d.summary.total_tasks}\n`;
         content += `Taches completees,${d.summary.completed_tasks}\n`;
-        content += `Budget total €,${d.summary.total_budget}\n`;
+        content += `Budget total ${currency},${d.summary.total_budget}\n`;
         content += `Ouvriers,${d.summary.total_workers}\n`;
         content += `Heures travaillees,${d.summary.total_working_hours}\n\n`;
 
@@ -176,7 +178,7 @@ export default function ReportsIndex({
 
     const generateProjectContent = (): string => {
         const selectedProjects = reportData.data;
-        let content = 'Nom,Statut,Debut,Fin,Budget €,Manager,Ingenieur,Taches completees,Ouvriers,Etapes\n';
+        let content = `Nom,Statut,Debut,Fin,Budget ${currency},Manager,Ingenieur,Taches completees,Ouvriers,Etapes\n`;
         selectedProjects.forEach((p: any) => {
             content += `${p.name},${p.status},${p.start_date},${p.deadline},${p.budget},${p.manager || '-'},${p.engineer || '-'},${p.completed_tasks}/${p.total_tasks},${p.total_workers},${p.total_steps}\n`;
         });
@@ -217,6 +219,17 @@ export default function ReportsIndex({
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Rapports</h1>
                     <p className="text-sm text-muted-foreground">Generez, redigez et soumettez les rapports.</p>
+                </div>
+
+                <div className="flex justify-end">
+                    <select
+                        value={currency}
+                        onChange={(event) => setCurrency(event.target.value as 'USD' | 'CDF')}
+                        className="h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
+                    >
+                        <option value="USD">USD ($)</option>
+                        <option value="CDF">FC (CDF)</option>
+                    </select>
                 </div>
 
                 {canSubmitReport && (
@@ -443,8 +456,8 @@ export default function ReportsIndex({
                             </Button>
                         </CardHeader>
                         <CardContent>
-                            {selectedReport === 'global' && <GlobalReport data={reportData.data} />}
-                            {selectedReport === 'project' && <ProjectReport data={reportData.data} />}
+                            {selectedReport === 'global' && <GlobalReport data={reportData.data} formatCurrency={formatCurrency} />}
+                            {selectedReport === 'project' && <ProjectReport data={reportData.data} formatCurrency={formatCurrency} />}
                             {selectedReport === 'worker' && <WorkerReport data={reportData.data} />}
                             {selectedReport === 'activities' && <ActivitiesReport data={reportData.data} />}
                         </CardContent>
@@ -455,7 +468,7 @@ export default function ReportsIndex({
     );
 }
 
-function GlobalReport({ data }: any) {
+function GlobalReport({ data, formatCurrency }: any) {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -463,7 +476,7 @@ function GlobalReport({ data }: any) {
                 <StatCard label="Projets Actifs" value={data.summary.active_projects} />
                 <StatCard label="Taches Completees" value={`${data.summary.completed_tasks}/${data.summary.total_tasks}`} />
                 <StatCard label="Ouvriers" value={data.summary.total_workers} />
-                <StatCard label="Budget Total" value={`${Math.round(data.summary.total_budget)} €`} />
+                <StatCard label="Budget Total" value={formatCurrency(data.summary.total_budget)} />
                 <StatCard label="Heures Travaillees" value={`${data.summary.total_working_hours}h`} />
             </div>
 
@@ -488,7 +501,7 @@ function GlobalReport({ data }: any) {
     );
 }
 
-function ProjectReport({ data }: any) {
+function ProjectReport({ data, formatCurrency }: any) {
     return (
         <div className="space-y-4">
             {data.length === 0 ? (
@@ -512,7 +525,7 @@ function ProjectReport({ data }: any) {
                                 </div>
                                 <div>
                                     <span className="text-xs text-muted-foreground">Budget</span>
-                                    <p className="text-sm font-bold mt-1">{project.budget} €</p>
+                                    <p className="text-sm font-bold mt-1">{formatCurrency(project.budget)}</p>
                                 </div>
                                 <div>
                                     <span className="text-xs text-muted-foreground">Taches</span>

@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { AlertTriangle, Package, Pencil, Plus, Search, Trash2, ClipboardCheck, TrendingUp, Coins, LayoutGrid, List, Link as LinkIcon } from 'lucide-react';
 import React from 'react';
 
-import { allocate, destroy, store, update } from '@/actions/App/Http/Controllers/Api/MaterialController';
+import { allocate, destroy, stockIn, stockOut, store, update } from '@/actions/App/Http/Controllers/Api/MaterialController';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useCurrency } from '@/lib/currency';
 
 type MaterialItem = {
     id: number;
@@ -39,6 +40,19 @@ type ProjectAllocation = {
         quantity: number;
         unit: string;
     }[];
+};
+
+type MaterialMovement = {
+    id: number;
+    material_id: number;
+    material_name: string | null;
+    material_unit: string | null;
+    movement_type: 'entry' | 'exit';
+    quantity: number;
+    reason: string | null;
+    comment: string | null;
+    occurred_at: string | null;
+    performed_by: string | null;
 };
 
 const UNIT_PRICE_BY_NAME: Record<string, number> = {
@@ -68,10 +82,6 @@ function normalizeKey(value: string): string {
     return value.trim().toLowerCase();
 }
 
-function formatAmount(amount: number): string {
-    return `${Math.round(amount).toLocaleString('en-US')}$`;
-}
-
 function formatQuantity(quantity: number, unit: string): string {
     const rounded = Number.isInteger(quantity) ? quantity.toString() : quantity.toFixed(2);
 
@@ -88,14 +98,19 @@ export default function MaterialsIndex({
     materials, 
     projectAllocations = [],
     projects = [],
+    movements = [],
 }: { 
     materials: MaterialItem[]; 
     projectAllocations?: ProjectAllocation[];
     projects?: ProjectItem[];
+    movements?: MaterialMovement[];
 }) {
+    const { currency, setCurrency, formatCurrency } = useCurrency();
     const [searchTerm, setSearchTerm] = React.useState('');
     const [openDialog, setOpenDialog] = React.useState(false);
     const [openAllocationDialog, setOpenAllocationDialog] = React.useState(false);
+    const [openStockInDialog, setOpenStockInDialog] = React.useState(false);
+    const [openStockOutDialog, setOpenStockOutDialog] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [editingMaterial, setEditingMaterial] = React.useState<MaterialItem | null>(null);
     const [selectedMaterialForAllocation, setSelectedMaterialForAllocation] = React.useState<MaterialItem | null>(null);
@@ -111,6 +126,12 @@ export default function MaterialsIndex({
         material_id: '',
         project_id: '',
         quantity_requested: '',
+        comment: '',
+    });
+    const [stockMovementData, setStockMovementData] = React.useState({
+        material_id: '',
+        quantity: '',
+        reason: '',
         comment: '',
     });
 
@@ -253,6 +274,47 @@ return;
         });
     };
 
+    const handleMovementChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        setStockMovementData((prev) => ({
+            ...prev,
+            [e.target.name]: e.target.value,
+        }));
+    };
+
+    const submitStockMovement = (routeUrl: string, successCallback: () => void) => {
+        setIsSubmitting(true);
+
+        router.visit(routeUrl, {
+            method: 'post',
+            data: {
+                material_id: Number(stockMovementData.material_id),
+                quantity: Number(stockMovementData.quantity),
+                reason: stockMovementData.reason || null,
+                comment: stockMovementData.comment || null,
+            },
+            onSuccess: () => {
+                setStockMovementData({ material_id: '', quantity: '', reason: '', comment: '' });
+                successCallback();
+            },
+            onError: () => {
+                alert('Erreur lors de l\'enregistrement du mouvement de stock');
+            },
+            onFinish: () => {
+                setIsSubmitting(false);
+            },
+        });
+    };
+
+    const handleStockInSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        submitStockMovement(stockIn.url(), () => setOpenStockInDialog(false));
+    };
+
+    const handleStockOutSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        submitStockMovement(stockOut.url(), () => setOpenStockOutDialog(false));
+    };
+
     return (
         <>
             <Head title="Matériaux" />
@@ -262,6 +324,17 @@ return;
             <div>
               <h1 className="text-4xl font-black tracking-tight text-slate-900">Magasin & Stock</h1>
               <p className="mt-1 text-slate-500 font-medium">Gestion des matériaux et inventaire Lubumbashi</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+                <select
+                    value={currency}
+                    onChange={(event) => setCurrency(event.target.value as 'USD' | 'CDF')}
+                    className="h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
+                >
+                    <option value="USD">USD ($)</option>
+                    <option value="CDF">FC (CDF)</option>
+                </select>
             </div>
 
             <Dialog open={openDialog} onOpenChange={setOpenDialog}>
@@ -439,6 +512,94 @@ return;
                             </form>
                         </DialogContent>
                     </Dialog>
+
+                    <Dialog open={openStockInDialog} onOpenChange={setOpenStockInDialog}>
+                        <DialogContent>
+                            <DialogTitle>Entrée de matériel</DialogTitle>
+                            <form className="mt-4 space-y-4" onSubmit={handleStockInSubmit}>
+                                <div>
+                                    <Label htmlFor="material-in">Matériau *</Label>
+                                    <select
+                                        id="material-in"
+                                        name="material_id"
+                                        value={stockMovementData.material_id}
+                                        onChange={handleMovementChange}
+                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                        required
+                                    >
+                                        <option value="">-- Sélectionner un matériau --</option>
+                                        {normalizedMaterials.map((material) => (
+                                            <option key={material.id} value={material.id.toString()}>{material.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="qty-in">Quantité *</Label>
+                                    <Input id="qty-in" name="quantity" type="number" min="0.01" step="0.01" value={stockMovementData.quantity} onChange={handleMovementChange} required />
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="reason-in">Motif</Label>
+                                    <Input id="reason-in" name="reason" value={stockMovementData.reason} onChange={handleMovementChange} placeholder="Ex: Réapprovisionnement" />
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="comment-in">Commentaire</Label>
+                                    <textarea id="comment-in" name="comment" value={stockMovementData.comment} onChange={handleMovementChange} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" rows={3} />
+                                </div>
+
+                                <div className="flex justify-end gap-2">
+                                    <Button type="button" variant="outline" onClick={() => setOpenStockInDialog(false)}>Annuler</Button>
+                                    <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={isSubmitting}>{isSubmitting ? 'Enregistrement...' : 'Valider entrée'}</Button>
+                                </div>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={openStockOutDialog} onOpenChange={setOpenStockOutDialog}>
+                        <DialogContent>
+                            <DialogTitle>Sortie de matériel</DialogTitle>
+                            <form className="mt-4 space-y-4" onSubmit={handleStockOutSubmit}>
+                                <div>
+                                    <Label htmlFor="material-out">Matériau *</Label>
+                                    <select
+                                        id="material-out"
+                                        name="material_id"
+                                        value={stockMovementData.material_id}
+                                        onChange={handleMovementChange}
+                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                                        required
+                                    >
+                                        <option value="">-- Sélectionner un matériau --</option>
+                                        {normalizedMaterials.map((material) => (
+                                            <option key={material.id} value={material.id.toString()}>{material.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="qty-out">Quantité *</Label>
+                                    <Input id="qty-out" name="quantity" type="number" min="0.01" step="0.01" value={stockMovementData.quantity} onChange={handleMovementChange} required />
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="reason-out">Motif</Label>
+                                    <Input id="reason-out" name="reason" value={stockMovementData.reason} onChange={handleMovementChange} placeholder="Ex: Perte, casse, ajustement" />
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="comment-out">Commentaire</Label>
+                                    <textarea id="comment-out" name="comment" value={stockMovementData.comment} onChange={handleMovementChange} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" rows={3} />
+                                </div>
+
+                                <div className="flex justify-end gap-2">
+                                    <Button type="button" variant="outline" onClick={() => setOpenStockOutDialog(false)}>Annuler</Button>
+                                    <Button type="submit" className="bg-rose-600 hover:bg-rose-700" disabled={isSubmitting}>{isSubmitting ? 'Enregistrement...' : 'Valider sortie'}</Button>
+                                </div>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
                 </div>
 
         {/* Premium Stats Row */}
@@ -455,7 +616,7 @@ return;
                     <p className="text-[10px] font-black uppercase tracking-wider">Valeur Stock</p>
                     <Coins className="h-6 w-6" />
                 </div>
-                <p className="text-3xl font-black">{formatAmount(normalizedMaterials.reduce((acc, m) => acc + m.total, 0))}</p>
+                                <p className="text-3xl font-black">{formatCurrency(normalizedMaterials.reduce((acc, m) => acc + m.total, 0))}</p>
               </div>
               <div className="rounded-3xl bg-amber-500 p-6 text-white shadow-xl shadow-amber-500/20 group transition-transform hover:-translate-y-1">
                 <div className="flex items-center justify-between opacity-80 mb-4">
@@ -489,6 +650,13 @@ return;
                     >
                         <TrendingUp className="mr-2 h-4 w-4 inline-block" />
                         Affectations Chantiers
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('movements')}
+                        className={`rounded-xl px-8 py-3 font-bold transition-all ${activeTab === 'movements' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        <ClipboardCheck className="mr-2 h-4 w-4 inline-block" />
+                        Entrées / Sorties
                     </button>
                 </div>
 
@@ -530,11 +698,31 @@ return;
                                     </div>
                                     <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 text-center">
                                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Stock Valeur</p>
-                                        <p className="text-xl font-black text-blue-600 tracking-tighter">{formatAmount(material.total)}</p>
+                                        <p className="text-xl font-black text-blue-600 tracking-tighter">{formatCurrency(material.total)}</p>
                                     </div>
                                 </div>
 
                                 <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Button
+                                            onClick={() => {
+                                                setStockMovementData((prev) => ({ ...prev, material_id: material.id.toString() }));
+                                                setOpenStockInDialog(true);
+                                            }}
+                                            className="h-11 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600"
+                                        >
+                                            + Entrée
+                                        </Button>
+                                        <Button
+                                            onClick={() => {
+                                                setStockMovementData((prev) => ({ ...prev, material_id: material.id.toString() }));
+                                                setOpenStockOutDialog(true);
+                                            }}
+                                            className="h-11 rounded-xl bg-rose-500 text-white font-bold hover:bg-rose-600"
+                                        >
+                                            - Sortie
+                                        </Button>
+                                    </div>
                                     <Button onClick={() => handleOpenAllocationDialog(material)} className="h-11 w-full rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all">
                                         <LinkIcon className="mr-2 h-4 w-4" />
                                         Affecter au Chantier
@@ -597,6 +785,39 @@ return;
                         </div>
                     )}
                 </div>
+            )}
+
+            {activeTab === 'movements' && (
+                <Card className="rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/30">
+                    <CardHeader>
+                        <CardTitle className="text-xl font-black">Historique des mouvements de stock</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {movements.length === 0 ? (
+                            <p className="text-slate-500 font-medium">Aucun mouvement enregistré.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {movements.map((movement) => (
+                                    <div key={movement.id} className="flex items-start justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                                        <div>
+                                            <p className="font-bold text-slate-900">{movement.material_name ?? 'Matériau inconnu'}</p>
+                                            <p className="text-xs text-slate-500">
+                                                {movement.reason ?? 'Mouvement manuel'}
+                                                {movement.comment ? ` • ${movement.comment}` : ''}
+                                            </p>
+                                            <p className="text-xs text-slate-400 mt-1">
+                                                {movement.performed_by ?? 'Utilisateur inconnu'} • {movement.occurred_at ? new Date(movement.occurred_at).toLocaleString('fr-FR') : '-'}
+                                            </p>
+                                        </div>
+                                        <Badge className={movement.movement_type === 'entry' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}>
+                                            {movement.movement_type === 'entry' ? '+' : '-'} {movement.quantity} {movement.material_unit ?? ''}
+                                        </Badge>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             )}
         </div>
       </div>

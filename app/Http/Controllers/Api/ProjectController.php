@@ -30,8 +30,9 @@ class ProjectController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'start_date' => 'nullable|date',
-            'deadline' => 'required|date',
+            'deadline' => 'required|date|after_or_equal:start_date',
             'budget' => 'nullable|numeric|min:0',
+            'progress' => 'nullable|integer|min:0|max:100',
             'status' => 'nullable|in:initialisation,planifie,en_cours,termine,suspendu',
             'engineer_id' => 'nullable|exists:users,id',
             'steps' => 'nullable|array',
@@ -45,6 +46,7 @@ class ProjectController extends Controller
             'start_date' => $validated['start_date'] ?? null,
             'budget' => $validated['budget'] ?? 0,
             'deadline' => $validated['deadline'],
+            'progress' => $validated['progress'] ?? 0,
             'engineer_id' => $validated['engineer_id'] ?? null,
             'manager_id' => auth()->id(),
             'status' => $validated['status'] ?? 'initialisation',
@@ -107,6 +109,7 @@ class ProjectController extends Controller
             'start_date' => 'nullable|date',
             'deadline' => 'nullable|date',
             'budget' => 'nullable|numeric|min:0',
+            'progress' => 'nullable|integer|min:0|max:100',
             'status' => 'nullable|in:initialisation,planifie,en_cours,termine,suspendu',
             'engineer_id' => 'nullable|exists:users,id',
             'storekeeper_id' => 'nullable|exists:users,id',
@@ -116,8 +119,20 @@ class ProjectController extends Controller
             'steps.*.budget' => 'nullable|numeric|min:0',
         ]);
 
+        $resolvedStartDate = $validated['start_date'] ?? $project->start_date;
+        $resolvedDeadline = $validated['deadline'] ?? $project->deadline;
+
+        if ($resolvedStartDate && $resolvedDeadline && $resolvedDeadline < $resolvedStartDate) {
+            return response()->json([
+                'message' => 'Erreur de validation',
+                'errors' => [
+                    'deadline' => ['La date de fin doit être postérieure ou égale à la date de début.'],
+                ],
+            ], 422);
+        }
+
         $project->update($request->only([
-            'name', 'description', 'start_date', 'deadline', 'budget', 'status', 'engineer_id', 'storekeeper_id',
+            'name', 'description', 'start_date', 'deadline', 'budget', 'status', 'progress', 'engineer_id', 'storekeeper_id',
         ]));
 
         if ($request->has('steps')) {

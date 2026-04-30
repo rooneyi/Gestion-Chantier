@@ -17,15 +17,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { UserRoleValue } from '@/Enums/UserRole';
 import { UserRole } from '@/Enums/UserRole';
+import { useCurrency } from '@/lib/currency';
 
 type UserItem = {
   id: number;
   name: string;
   email: string;
   role: UserRoleValue;
-  daily_rate: string | number | null;
+  phone: string | null;
   skills: string | null;
-  status: 'Actif' | 'Inactif';
+  status: 'Actif' | 'Inactif' | 'Congé';
 };
 
 type WorkforceRow = UserItem & {
@@ -60,14 +61,6 @@ const SKILLS_BY_ROLE: Record<string, string[]> = {
   [UserRole.ChefChantier.value]: ['Coordination', 'Sécurité'],
 };
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 function formatPhone(userId: number): string {
   const suffix = (970000000 + userId * 37).toString().slice(-9);
 
@@ -87,6 +80,7 @@ function resolveStatus(userId: number): WorkforceRow['status'] {
 }
 
 export default function UsersIndex({ users }: { users: UserItem[] }) {
+  const { currency, setCurrency, formatCurrency } = useCurrency();
   const [open, setOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
@@ -96,20 +90,20 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
     email: string;
     password: string;
     role: UserRoleValue;
-    daily_rate: string;
+    phone: string;
     skills: string;
   }>({
     name: '',
     email: '',
     password: '',
     role: UserRole.Worker.value,
-    daily_rate: '',
+    phone: '',
     skills: '',
   });
 
   const workforce = React.useMemo<WorkforceRow[]>(() => {
     return users.map((user) => {
-      const baseSalary = user.daily_rate ? Number(user.daily_rate) : (BASE_SALARY_BY_ROLE[user.role] ?? 850);
+      const baseSalary = BASE_SALARY_BY_ROLE[user.role] ?? 850;
       const skillsList = user.skills 
         ? user.skills.split(',').map(s => s.trim()) 
         : (SKILLS_BY_ROLE[user.role] ?? ['Polyvalent']);
@@ -184,7 +178,7 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
         return;
       }
 
-      setFormData({ name: '', email: '', password: '', role: UserRole.Worker.value, daily_rate: '', skills: '' });
+      setFormData({ name: '', email: '', password: '', role: UserRole.Worker.value, phone: '', skills: '' });
       setEditingUser(null);
       setOpen(false);
       router.visit(index.url());
@@ -203,7 +197,7 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
       email: user.email,
       password: '', // Leave empty for updates
       role: user.role,
-      daily_rate: user.daily_rate?.toString() || '',
+      phone: user.phone || '',
       skills: user.skills || '',
     });
     setOpen(true);
@@ -244,6 +238,17 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
             <div>
               <h1 className="text-4xl font-black tracking-tight text-slate-900">Main-d'œuvre</h1>
               <p className="mt-1 text-slate-500 font-medium">Gestion des ouvriers et du personnel</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value as 'USD' | 'CDF')}
+                className="h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
+              >
+                <option value="USD">USD ($)</option>
+                <option value="CDF">FC (CDF)</option>
+              </select>
             </div>
 
             <Dialog open={open} onOpenChange={setOpen}>
@@ -315,12 +320,12 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
                   </div>
 
                   <div>
-                    <Label htmlFor="daily_rate">Montant journalier (USD) *</Label>
+                    <Label htmlFor="phone">Numéro de téléphone *</Label>
                     <Input
-                      id="daily_rate"
-                      name="daily_rate"
-                      type="number"
-                      value={formData.daily_rate}
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
                       onChange={handleChange}
                       placeholder="Ex: 50"
                       required
@@ -341,7 +346,7 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
                   <div className="flex justify-end gap-2 pt-2">
                     <DialogClose asChild>
                       <Button type="button" variant="outline" onClick={() => {
- setEditingUser(null); setFormData({ name: '', email: '', password: '', role: UserRole.Worker.value, daily_rate: '', skills: '' }); 
+ setEditingUser(null); setFormData({ name: '', email: '', password: '', role: UserRole.Worker.value, phone: '', skills: '' }); 
 }}>Annuler</Button>
                     </DialogClose>
                     <Button type="submit" disabled={isLoading}>{isLoading ? 'Enregistrement...' : (editingUser ? 'Modifier' : 'Créer')}</Button>
@@ -378,7 +383,7 @@ export default function UsersIndex({ users }: { users: UserItem[] }) {
                     <p className="text-sm font-black uppercase tracking-wider">Masse salariale</p>
                     <Coins className="h-6 w-6" />
                 </div>
-                <p className="text-5xl font-black">{stats.payroll}<span className="text-2xl ml-1">$</span></p>
+                <p className="text-5xl font-black">{formatCurrency(stats.payroll)}</p>
               </div>
         </div>
 

@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useCurrency } from '@/lib/currency';
 
 type ProjectItem = {
   id: number;
@@ -42,6 +43,7 @@ type ProjectItem = {
   start_date: string | null;
   deadline: string | null;
   status: string;
+  progress: number;
   engineer?: { id: number; name: string } | null;
   manager?: { id: number; name: string } | null;
   tasks?: Array<{ workers?: Array<{ id: number }> }>;
@@ -62,14 +64,6 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   termine: 'bg-emerald-600 text-white',
   suspendu: 'bg-rose-100 text-rose-700',
 };
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 function formatDateRange(startDate: string | null, deadline: string | null): string {
   const format = (value: string | null) => (value ? new Date(value).toLocaleDateString('fr-FR') : '-');
@@ -92,32 +86,11 @@ function getUniqueWorkerCount(project: ProjectItem): number {
 }
 
 function getProgress(project: ProjectItem): number {
-  if (project.status === 'termine') {
-    return 100;
-  }
-
-  if (project.status !== 'en_cours') {
-    return 0;
-  }
-
-  if (!project.start_date || !project.deadline) {
-    return 55;
-  }
-
-  const start = new Date(project.start_date).getTime();
-  const end = new Date(project.deadline).getTime();
-  const now = Date.now();
-
-  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
-    return 55;
-  }
-
-  const ratio = ((now - start) / (end - start)) * 100;
-
-  return Math.max(5, Math.min(95, Math.round(ratio)));
+  return project.progress || 0;
 }
 
 export default function ProjectsIndex({ projects, engineers }: { projects: ProjectItem[], engineers: Array<{ id: number, name: string }> }) {
+  const { currency, setCurrency, formatCurrency, rate, setRate } = useCurrency();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [openDialog, setOpenDialog] = React.useState(false);
@@ -230,6 +203,13 @@ return;
 
   const handleSubmitProject = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.start_date && formData.deadline && formData.deadline < formData.start_date) {
+      alert('La date de fin doit être postérieure ou égale à la date de début.');
+
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -280,6 +260,28 @@ return;
               <p className="mt-1 text-slate-500 font-medium">Suivi de tous vos projets à Lubumbashi</p>
             </div>
 
+            <div className="flex items-center gap-2">
+              <select
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value as 'USD' | 'CDF')}
+                className="h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
+              >
+                <option value="USD">USD ($)</option>
+                <option value="CDF">FC (CDF)</option>
+              </select>
+              {currency === 'CDF' && (
+                <div className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 h-11">
+                  <span className="text-xs font-bold text-slate-500">Taux:</span>
+                  <input 
+                    type="number" 
+                    value={rate} 
+                    onChange={e => setRate(parseFloat(e.target.value) || 0)} 
+                    className="w-20 border-0 p-0 text-sm font-semibold text-slate-700 focus:ring-0" 
+                  />
+                </div>
+              )}
+            </div>
+
             <Dialog open={openDialog} onOpenChange={setOpenDialog}>
               <DialogTrigger asChild>
                 <Button className="h-12 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all hover:scale-105 active:scale-95">
@@ -316,7 +318,7 @@ return;
                   </div>
 
                   <div>
-                    <Label htmlFor="budget">Budget (USD) *</Label>
+                    <Label htmlFor="budget">Budget ({currency}) *</Label>
                     <Input
                       id="budget"
                       name="budget"
@@ -349,6 +351,7 @@ return;
                       type="date"
                       value={formData.deadline}
                       onChange={handleFormChange}
+                      min={formData.start_date || undefined}
                       required
                     />
                   </div>

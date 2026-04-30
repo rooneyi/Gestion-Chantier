@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\AttendanceShift;
 use App\Enums\AttendanceStatus;
+use App\Enums\UserRole;
+use App\Models\ActivityLog;
 use App\Models\Attendance;
 use App\Models\Project;
 use App\Models\User;
@@ -17,11 +19,28 @@ class AttendanceController extends Controller
 {
     public function index(): Response
     {
+        $user = request()->user();
+        $userRoleValue = $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
         $date = request('date') ? Carbon::parse(request('date')) : Carbon::today();
         $projectId = request('project_id');
 
         $query = Attendance::with('user', 'project')
             ->whereRaw('DATE(date) = ?', [$date->toDateString()]);
+
+        $projectsQuery = Project::select('id', 'name')->orderBy('name');
+
+        if (in_array($userRoleValue, [UserRole::Worker->value, UserRole::Magasinier->value], true)) {
+            $userProjectId = $user->projects()->value('projects.id');
+            if ($userProjectId) {
+                $projectsQuery->where('id', $userProjectId);
+                $projectId = $projectId ?: $userProjectId;
+            }
+        } elseif ($userRoleValue === UserRole::Engineer->value) {
+            $projectsQuery->where('engineer_id', $user->id);
+            if (! $projectId && $projectsQuery->count() === 1) {
+                $projectId = $projectsQuery->value('id');
+            }
+        }
 
         if ($projectId) {
             $query->where('project_id', $projectId);
@@ -34,7 +53,7 @@ class AttendanceController extends Controller
         $checked_out = $attendances->filter(fn ($a) => $a->check_out)->count();
         $absent = User::where('role', '!=', 'manager')->count() - $attendances->count();
 
-        $projects = Project::select('id', 'name')->orderBy('name')->get();
+        $projects = $projectsQuery->get();
         $workers = User::where('role', 'worker')->select('id', 'name')->orderBy('name')->get();
 
         // Get available statuses
@@ -106,46 +125,38 @@ class AttendanceController extends Controller
         ]);
 
         $shift = $validated['shift'] ?? 'morning';
-        $today = Carbon::today()->toDateString();
 
-        // Check if already checked in for this shift today
-        $existingAttendance = Attendance::where('user_id', $validated['user_id'])
-            ->where('project_id', $validated['project_id'])
-            ->whereDate('date', $today)
-            ->where('shift', $shift)
+        // Check if there is any check-in in the last 24 hours
+        $last24Hours = Attendance::where('user_id', $validated['user_id'])
+            ->where('check_in', '>=', Carbon::now()->subHours(24))
             ->first();
 
-        if ($existingAttendance && $existingAttendance->check_in && ! $existingAttendance->check_out) {
+        if ($last24Hours && $last24Hours->check_in) {
             return response()->json([
-                'message' => "Déjà enregistré pour le shift de {$shift} aujourd'hui",
+                'message' => 'Vous avez déjà été pointé(e) dans les dernières 24 heures.',
                 'error' => true,
             ], 422);
         }
 
-        // If already exists but checked out, update it; otherwise create new
-        if ($existingAttendance) {
-            $existingAttendance->update([
-                'check_in' => Carbon::now(),
-                'check_out' => null,
-                'status' => $validated['status'] ?? 'present',
-                'latitude' => $validated['latitude'] ?? null,
-                'longitude' => $validated['longitude'] ?? null,
-            ]);
-            $attendance = $existingAttendance;
-        } else {
-            $attendance = Attendance::create([
-                'user_id' => $validated['user_id'],
-                'project_id' => $validated['project_id'],
-                'date' => Carbon::today(),
-                'shift' => $shift,
-                'check_in' => Carbon::now(),
-                'status' => $validated['status'] ?? 'present',
-                'latitude' => $validated['latitude'] ?? null,
-                'longitude' => $validated['longitude'] ?? null,
-            ]);
-        }
+        $attendance = Attendance::create([
+            'user_id' => $validated['user_id'],
+            'project_id' => $validated['project_id'],
+            'date' => Carbon::today(),
+            'shift' => $shift,
+            'check_in' => Carbon::now(),
+            'status' => $validated['status'] ?? 'present',
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
+        ]);
 
         $attendance->load('user', 'project');
+
+        ActivityLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'take_attendance',
+            'description' => "Enregistrement de l'arrivée pour ".$attendance->user->name,
+            'properties' => $attendance->toArray(),
+        ]);
 
         return response()->json([
             'message' => 'Arrivée enregistrée',
@@ -167,6 +178,13 @@ class AttendanceController extends Controller
         ]);
 
         $attendance->load('user', 'project');
+
+        ActivityLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'take_attendance',
+            'description' => 'Enregistrement du départ pour '.$attendance->user->name,
+            'properties' => $attendance->toArray(),
+        ]);
 
         return response()->json([
             'message' => 'Départ enregistré',

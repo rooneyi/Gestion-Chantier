@@ -60,6 +60,34 @@ test('project requires deadline in future', function () {
         ->assertJsonValidationErrors('deadline');
 });
 
+test('project deadline cannot be earlier than start date on create', function () {
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+
+    $this->actingAs($manager)->postJson('/projects', [
+        'name' => 'Dates invalides',
+        'start_date' => now()->addDays(7)->toDateString(),
+        'deadline' => now()->addDays(1)->toDateString(),
+        'steps' => [
+            ['name' => 'Phase 1', 'budget' => 1000],
+        ],
+    ])->assertStatus(422)
+        ->assertJsonValidationErrors('deadline');
+});
+
+test('project deadline cannot be earlier than start date on update', function () {
+    $manager = User::factory()->create(['role' => UserRole::Manager]);
+    $project = Project::factory()->create([
+        'manager_id' => $manager->id,
+        'start_date' => now()->toDateString(),
+        'deadline' => now()->addDays(30)->toDateString(),
+    ]);
+
+    $this->actingAs($manager)->putJson("/projects/{$project->id}", [
+        'deadline' => now()->subDays(1)->toDateString(),
+    ])->assertStatus(422)
+        ->assertJsonValidationErrors('deadline');
+});
+
 test('project requires at least one step', function () {
     $manager = User::factory()->create(['role' => UserRole::Manager]);
 
